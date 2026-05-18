@@ -2,11 +2,6 @@ require('dotenv').config();
 
 const { Client, GatewayIntentBits } = require('discord.js');
 
-console.log('TOKEN EXISTS:', !!process.env.TOKEN);
-console.log('ROLE_ID:', process.env.ROLE_ID);
-console.log('VOICE_CHANNEL_1:', process.env.VOICE_CHANNEL_1);
-console.log('VOICE_CHANNEL_2:', process.env.VOICE_CHANNEL_2);
-
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -37,7 +32,7 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
         const oldChannel = oldState.channelId;
         const newChannel = newState.channelId;
 
-        // Entrou em uma das calls monitoradas
+        // Entrou nas calls monitoradas
         if (
             monitoredChannels.includes(newChannel) &&
             !member.roles.cache.has(ROLE_ID)
@@ -45,9 +40,7 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
 
             await member.roles.add(ROLE_ID);
 
-            console.log(
-                `✅ Cargo adicionado para ${member.user.tag}`
-            );
+            console.log(`✅ Cargo adicionado para ${member.user.tag}`);
         }
 
         // Saiu das calls monitoradas
@@ -58,19 +51,12 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
 
             await member.roles.remove(ROLE_ID);
 
-            console.log(
-                `❌ Cargo removido de ${member.user.tag}`
-            );
+            console.log(`❌ Cargo removido de ${member.user.tag}`);
         }
 
     } catch (err) {
-        console.error('ERRO:', err);
+        console.error(err);
     }
 });
-
-if (!process.env.TOKEN) {
-    console.error('❌ TOKEN NÃO ENCONTRADO');
-    process.exit(1);
-}
 
 client.login(process.env.TOKEN);
