@@ -1,0 +1,25 @@
+{
+  "name": "discord-call-role-bot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/guuzs45/discord-call-role-bot.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/guuzs45/discord-call-role-bot/issues"
+  },
+  "homepage": "https://github.com/guuzs45/discord-call-role-bot#readme",
+  "dependencies": {
+    "discord.js": "^14.26.4",
+    "dotenv": "^17.4.2"
+  }
+}
