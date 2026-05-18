@@ -2,6 +2,11 @@ require('dotenv').config();
 
 const { Client, GatewayIntentBits } = require('discord.js');
 
+console.log('TOKEN EXISTS:', !!process.env.TOKEN);
+console.log('ROLE_ID:', process.env.ROLE_ID);
+console.log('VOICE_CHANNEL_1:', process.env.VOICE_CHANNEL_1);
+console.log('VOICE_CHANNEL_2:', process.env.VOICE_CHANNEL_2);
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -17,7 +22,7 @@ const monitoredChannels = [
     process.env.VOICE_CHANNEL_2
 ];
 
-client.once('ready', () => {
+client.once('clientReady', () => {
     console.log(`✅ Bot online: ${client.user.tag}`);
 });
 
@@ -32,7 +37,7 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
         const oldChannel = oldState.channelId;
         const newChannel = newState.channelId;
 
-        // Entrou em call monitorada
+        // Entrou em uma das calls monitoradas
         if (
             monitoredChannels.includes(newChannel) &&
             !member.roles.cache.has(ROLE_ID)
@@ -59,8 +64,13 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
         }
 
     } catch (err) {
-        console.error(err);
+        console.error('ERRO:', err);
     }
 });
+
+if (!process.env.TOKEN) {
+    console.error('❌ TOKEN NÃO ENCONTRADO');
+    process.exit(1);
+}
 
 client.login(process.env.TOKEN);
