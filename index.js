@@ -61,7 +61,7 @@ db.serialize(() => {
 
 function formatarData(timestamp) {
 
-    if (!timestamp) return 'Nunca';
+    if (!timestamp) return 'Sem atividade';
 
     return new Date(timestamp).toLocaleDateString('pt-BR');
 }
@@ -158,7 +158,7 @@ async function executarLimpeza(guild) {
                 if (logChannel) {
 
                     await logChannel.send(
-                        `🧹 ${member.user.tag} foi movido para Visitante por inatividade.\n📅 Última atividade: ${formatarData(ultima)}`
+                        `🧹 ${member.user.tag} foi movido para Visitante.\n📅 Última atividade: ${formatarData(ultima)}`
                     );
                 }
 
@@ -292,7 +292,7 @@ client.on('interactionCreate', async interaction => {
             if (ultima < limite) {
 
                 inativos.push(
-                    `👤 ${member.user.tag} • ${member.displayName} - 📅 ${formatarData(ultima)}`
+                    `• ${member.user.tag} → ${member.displayName} | ${formatarData(ultima)}`
                 );
             }
         }
