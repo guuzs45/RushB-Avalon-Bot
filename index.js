@@ -339,7 +339,7 @@ cron.schedule('0 3 */7 * *', async () => {
     console.log('🧹 Iniciando limpeza automática...');
 
     const guild = await client.guilds.fetch(GUILD_ID);
-
+git pull origin main --rebase
     executarLimpeza(guild);
 });
 
