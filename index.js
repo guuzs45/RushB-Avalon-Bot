@@ -63,7 +63,7 @@ function formatarData(timestamp) {
 
     if (!timestamp) return 'Nunca';
 
-    return new Date(timestamp).toLocaleString('pt-BR');
+    return new Date(timestamp).toLocaleDateString('pt-BR');
 }
 
 function updateActivity(userId) {
@@ -282,6 +282,7 @@ client.on('interactionCreate', async interaction => {
             if (interactions > 0) {
 
                 ativos.push({
+                    user: member.user.tag,
                     nome: member.displayName,
                     total: interactions,
                     ultima: ultima
@@ -291,7 +292,7 @@ client.on('interactionCreate', async interaction => {
             if (ultima < limite) {
 
                 inativos.push(
-                    `👤 ${member.user.tag} | ${member.displayName}\n📅 ${formatarData(ultima)}`
+                    `👤 ${member.user.tag} • ${member.displayName} - 📅 ${formatarData(ultima)}`
                 );
             }
         }
@@ -308,14 +309,14 @@ client.on('interactionCreate', async interaction => {
                 else if (index === 2) posicao = '🥉';
                 else posicao = `${index + 1}.`;
 
-                return `${posicao} ${a.nome} • ${a.total} interações\n📅 ${formatarData(a.ultima)}`;
+                return `${posicao} ${a.user} • ${a.nome} • ${a.total} | 📅 ${formatarData(a.ultima)}`;
             });
 
         let resposta =
 `📊 Relatório de Atividade
 
 🟢 Ranking de Atividade
-${rankingAtivos.join('\n\n')}
+${rankingAtivos.join('\n')}
 `;
 
         if (inativos.length > 0) {
@@ -323,7 +324,7 @@ ${rankingAtivos.join('\n\n')}
             resposta += `
 
 🔴 Inativos há mais de 7 dias
-${inativos.join('\n\n')}
+${inativos.join('\n')}
 `;
         }
 
@@ -347,7 +348,12 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
         const message = reaction.message;
 
-        if (message.author.id === RAID_HELPER_ID) {
+        const isRaidHelper =
+            message.author.id === RAID_HELPER_ID ||
+            message.webhookId ||
+            message.embeds.length > 0;
+
+        if (isRaidHelper) {
 
             updateActivity(user.id);
 
