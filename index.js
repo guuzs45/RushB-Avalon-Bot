@@ -55,17 +55,35 @@ db.serialize(() => {
     db.run(`
         CREATE TABLE IF NOT EXISTS activity (
             userId TEXT PRIMARY KEY,
-            lastActivity INTEGER
+            lastActivity INTEGER,
+            interactions INTEGER DEFAULT 0
         )
     `);
 });
 
 function updateActivity(userId) {
 
-    db.run(`
-        INSERT OR REPLACE INTO activity(userId, lastActivity)
-        VALUES (?, ?)
-    `, [userId, Date.now()]);
+    db.get(`
+        SELECT interactions
+        FROM activity
+        WHERE userId = ?
+    `, [userId], (err, row) => {
+
+        const interactions = (row?.interactions || 0) + 1;
+
+        db.run(`
+            INSERT OR REPLACE INTO activity(
+                userId,
+                lastActivity,
+                interactions
+            )
+            VALUES (?, ?, ?)
+        `, [
+            userId,
+            Date.now(),
+            interactions
+        ]);
+    });
 }
 
 async function executarLimpeza(guild) {
@@ -97,7 +115,7 @@ async function executarLimpeza(guild) {
         const row = await new Promise(resolve => {
 
             db.get(`
-                SELECT lastActivity
+                SELECT *
                 FROM activity
                 WHERE userId = ?
             `, [member.id], (err, row) => {
@@ -166,7 +184,7 @@ client.once('clientReady', async () => {
 
         new SlashCommandBuilder()
             .setName('atividade')
-            .setDescription('Mostra membros inativos')
+            .setDescription('Mostra relatório de atividade')
 
     ].map(command => command.toJSON());
 
@@ -227,7 +245,8 @@ client.on('interactionCreate', async interaction => {
 
         const limite = Date.now() - (7 * 24 * 60 * 60 * 1000);
 
-        let lista = [];
+        let inativos = [];
+        let ativos = [];
 
         for (const member of members.values()) {
 
@@ -242,7 +261,7 @@ client.on('interactionCreate', async interaction => {
             const row = await new Promise(resolve => {
 
                 db.get(`
-                    SELECT lastActivity
+                    SELECT *
                     FROM activity
                     WHERE userId = ?
                 `, [member.id], (err, row) => {
@@ -253,25 +272,54 @@ client.on('interactionCreate', async interaction => {
 
             const ultima = row?.lastActivity || 0;
 
+            const interactions = row?.interactions || 0;
+
+            ativos.push({
+                nome: member.displayName,
+                total: interactions
+            });
+
             if (ultima < limite) {
 
-                lista.push(
-                    `👤 ${member.user.tag}\n🏷️ ${member.displayName}`
+                inativos.push(
+                    `👤 ${member.user.tag} | ${member.displayName}`
                 );
             }
         }
 
-        if (lista.length === 0) {
+        ativos.sort((a, b) => b.total - a.total);
 
-            return interaction.reply({
-                content: '✅ Nenhum membro inativo.',
-                ephemeral: true
+        const rankingAtivos = ativos
+            .map((a, index) => {
+
+                let posicao;
+
+                if (index === 0) posicao = '🥇';
+                else if (index === 1) posicao = '🥈';
+                else if (index === 2) posicao = '🥉';
+                else posicao = `${index + 1}️⃣`;
+
+                return `${posicao} ${a.nome} • ${a.total}`;
             });
+
+        let resposta =
+`📊 Relatório de Atividade
+
+🟢 Ranking de Atividade
+${rankingAtivos.join('\n')}
+`;
+
+        if (inativos.length > 0) {
+
+            resposta += `
+
+🔴 Inativos há mais de 7 dias
+${inativos.join('\n')}
+`;
         }
 
         interaction.reply({
-            content:
-                `📋 Inativos:\n\n${lista.join('\n\n')}`,
+            content: resposta,
             ephemeral: true
         });
     }
