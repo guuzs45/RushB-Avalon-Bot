@@ -20,8 +20,6 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMessageReactions
     ],
     partials: [
@@ -60,6 +58,13 @@ db.serialize(() => {
         )
     `);
 });
+
+function formatarData(timestamp) {
+
+    if (!timestamp) return 'Nunca';
+
+    return new Date(timestamp).toLocaleString('pt-BR');
+}
 
 function updateActivity(userId) {
 
@@ -153,7 +158,7 @@ async function executarLimpeza(guild) {
                 if (logChannel) {
 
                     await logChannel.send(
-                        `🧹 ${member.user.tag} foi movido para Visitante por inatividade.`
+                        `🧹 ${member.user.tag} foi movido para Visitante por inatividade.\n📅 Última atividade: ${formatarData(ultima)}`
                     );
                 }
 
@@ -274,19 +279,19 @@ client.on('interactionCreate', async interaction => {
 
             const interactions = row?.interactions || 0;
 
-            // SÓ MOSTRA NO RANKING QUEM JÁ INTERAGIU
             if (interactions > 0) {
 
                 ativos.push({
                     nome: member.displayName,
-                    total: interactions
+                    total: interactions,
+                    ultima: ultima
                 });
             }
 
             if (ultima < limite) {
 
                 inativos.push(
-                    `👤 ${member.user.tag} | ${member.displayName}`
+                    `👤 ${member.user.tag} | ${member.displayName}\n📅 ${formatarData(ultima)}`
                 );
             }
         }
@@ -303,14 +308,14 @@ client.on('interactionCreate', async interaction => {
                 else if (index === 2) posicao = '🥉';
                 else posicao = `${index + 1}.`;
 
-                return `${posicao} ${a.nome} • ${a.total}`;
+                return `${posicao} ${a.nome} • ${a.total} interações\n📅 ${formatarData(a.ultima)}`;
             });
 
         let resposta =
 `📊 Relatório de Atividade
 
 🟢 Ranking de Atividade
-${rankingAtivos.join('\n')}
+${rankingAtivos.join('\n\n')}
 `;
 
         if (inativos.length > 0) {
@@ -318,7 +323,7 @@ ${rankingAtivos.join('\n')}
             resposta += `
 
 🔴 Inativos há mais de 7 dias
-${inativos.join('\n')}
+${inativos.join('\n\n')}
 `;
         }
 
@@ -329,13 +334,7 @@ ${inativos.join('\n')}
     }
 });
 
-client.on('messageCreate', async (message) => {
-
-    if (message.author.bot) return;
-
-    updateActivity(message.author.id);
-});
-
+// ATIVIDADE APENAS EM REAÇÕES DO RAID HELPER
 client.on('messageReactionAdd', async (reaction, user) => {
 
     try {
@@ -361,13 +360,18 @@ client.on('messageReactionAdd', async (reaction, user) => {
     }
 });
 
+// ATIVIDADE APENAS EM CALLS
 client.on('voiceStateUpdate', async (oldState, newState) => {
 
     const member = newState.member;
 
     if (!member || member.user.bot) return;
 
-    updateActivity(member.user.id);
+    // REGISTRA ATIVIDADE EM QUALQUER CALL
+    if (oldState.channelId !== newState.channelId) {
+
+        updateActivity(member.user.id);
+    }
 
     try {
 
