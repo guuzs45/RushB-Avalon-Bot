@@ -274,10 +274,14 @@ client.on('interactionCreate', async interaction => {
 
             const interactions = row?.interactions || 0;
 
-            ativos.push({
-                nome: member.displayName,
-                total: interactions
-            });
+            // SÓ MOSTRA NO RANKING QUEM JÁ INTERAGIU
+            if (interactions > 0) {
+
+                ativos.push({
+                    nome: member.displayName,
+                    total: interactions
+                });
+            }
 
             if (ultima < limite) {
 
@@ -297,7 +301,7 @@ client.on('interactionCreate', async interaction => {
                 if (index === 0) posicao = '🥇';
                 else if (index === 1) posicao = '🥈';
                 else if (index === 2) posicao = '🥉';
-                else posicao = `${index + 1}️⃣`;
+                else posicao = `${index + 1}.`;
 
                 return `${posicao} ${a.nome} • ${a.total}`;
             });
