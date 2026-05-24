@@ -46,6 +46,9 @@ const PROTECTED_ROLES = [
 
 const RAID_HELPER_ID = '579155972115660803';
 
+// ALTERE ESTA DATA SEMPRE QUE FIZER UM NOVO RESET/REDEPLOY GRANDE
+const DEPLOY_DATE = new Date('2026-05-24T00:00:00');
+
 const db = new sqlite3.Database('./database.sqlite');
 
 db.serialize(() => {
@@ -136,7 +139,21 @@ async function executarLimpeza(guild) {
             });
         });
 
-        const ultima = row?.lastActivity || 0;
+        const ultima =
+            row?.lastActivity ||
+            member.joinedTimestamp ||
+            Date.now();
+
+        // PROTEÇÃO DE REDEPLOY
+        const diasDesdeDeploy =
+            (Date.now() - DEPLOY_DATE.getTime()) /
+            (1000 * 60 * 60 * 24);
+
+        const protegerSemAtividade =
+            !row?.lastActivity &&
+            diasDesdeDeploy < 5;
+
+        if (protegerSemAtividade) continue;
 
         if (ultima < limite) {
 
@@ -275,7 +292,10 @@ client.on('interactionCreate', async interaction => {
                 });
             });
 
-            const ultima = row?.lastActivity || 0;
+            const ultima =
+                row?.lastActivity ||
+                member.joinedTimestamp ||
+                Date.now();
 
             const interactions = row?.interactions || 0;
 
@@ -412,14 +432,17 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     }
 });
 
-// LIMPEZA AUTOMÁTICA A CADA 7 DIAS ÀS 03:00
-cron.schedule('0 3 */7 * *', async () => {
+// VERIFICA TODOS OS DIAS ÀS 05:00 - HORÁRIO DE SÃO PAULO
+cron.schedule('0 5 * * *', async () => {
 
-    console.log('🧹 Iniciando limpeza automática...');
+    console.log('🧹 Iniciando verificação automática...');
 
     const guild = await client.guilds.fetch(GUILD_ID);
 
     executarLimpeza(guild);
+
+}, {
+    timezone: 'America/Sao_Paulo'
 });
 
 client.login(process.env.TOKEN);
