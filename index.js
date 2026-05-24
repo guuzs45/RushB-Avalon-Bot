@@ -1,5 +1,5 @@
 // sistema atualizado
-```js
+
 require('dotenv').config();
 
 const {
@@ -42,20 +42,23 @@ const monitoredChannels = [
 ];
 
 const PROTECTED_ROLES = [
-    '1504501768011124917',
-    '1504502396766650570'
+    '1504501768011124917', // Staff
+    '1504502396766650570'  // Caller
 ];
 
 const RAID_HELPER_ID = '579155972115660803';
 
 const db = new sqlite3.Database('./database.sqlite');
 
-db.run(`
-CREATE TABLE IF NOT EXISTS activity (
-    userId TEXT PRIMARY KEY,
-    lastActivity INTEGER
-)
-`);
+db.serialize(() => {
+
+    db.run(`
+        CREATE TABLE IF NOT EXISTS activity (
+            userId TEXT PRIMARY KEY,
+            lastActivity INTEGER
+        )
+    `);
+});
 
 function updateActivity(userId) {
 
@@ -75,74 +78,80 @@ async function executarLimpeza(guild) {
 
     let removidos = 0;
 
-    members.forEach(member => {
+    for (const member of members.values()) {
 
-        if (member.user.bot) return;
+        if (member.user.bot) continue;
 
         if (
             member.permissions.has(
                 PermissionsBitField.Flags.Administrator
             )
-        ) return;
+        ) continue;
 
         const hasProtectedRole = member.roles.cache.some(role =>
             PROTECTED_ROLES.includes(role.id)
         );
 
-        if (hasProtectedRole) return;
+        if (hasProtectedRole) continue;
 
-        db.get(`
-            SELECT lastActivity
-            FROM activity
-            WHERE userId = ?
-        `, [member.id], async (err, row) => {
+        const row = await new Promise(resolve => {
 
-            if (err) return;
+            db.get(`
+                SELECT lastActivity
+                FROM activity
+                WHERE userId = ?
+            `, [member.id], (err, row) => {
 
-            const ultima = row?.lastActivity || 0;
+                if (err) {
 
-            if (ultima < limite) {
+                    console.error(err);
 
-                try {
-
-                    const rolesToRemove = member.roles.cache.filter(role =>
-                        role.id !== guild.id &&
-                        role.id !== VISITANTE_ROLE_ID
-                    );
-
-                    await member.roles.remove(rolesToRemove);
-
-                    await member.roles.add(VISITANTE_ROLE_ID);
-
-                    removidos++;
-
-                    console.log(`🧹 Limpo: ${member.user.tag}`);
-
-                    if (logChannel) {
-
-                        logChannel.send(
-                            `🧹 ${member.user.tag} foi movido para Visitante por inatividade.`
-                        );
-                    }
-
-                } catch (e) {
-
-                    console.error(e);
+                    return resolve(null);
                 }
-            }
+
+                resolve(row);
+            });
         });
-    });
 
-    setTimeout(() => {
+        const ultima = row?.lastActivity || 0;
 
-        if (logChannel) {
+        if (ultima < limite) {
 
-            logChannel.send(
-                `✅ Limpeza concluída. ${removidos} membros foram limpos.`
-            );
+            try {
+
+                const rolesToRemove = member.roles.cache.filter(role =>
+                    role.id !== guild.id &&
+                    role.id !== VISITANTE_ROLE_ID
+                );
+
+                await member.roles.remove(rolesToRemove);
+
+                await member.roles.add(VISITANTE_ROLE_ID);
+
+                removidos++;
+
+                console.log(`🧹 Limpo: ${member.user.tag}`);
+
+                if (logChannel) {
+
+                    await logChannel.send(
+                        `🧹 ${member.user.tag} foi movido para Visitante por inatividade.`
+                    );
+                }
+
+            } catch (e) {
+
+                console.error(e);
+            }
         }
+    }
 
-    }, 5000);
+    if (logChannel) {
+
+        await logChannel.send(
+            `✅ Limpeza concluída. ${removidos} membros foram limpos.`
+        );
+    }
 }
 
 client.once('ready', async () => {
@@ -200,9 +209,10 @@ client.on('interactionCreate', async interaction => {
 
     if (interaction.commandName === 'cleandc') {
 
-        await interaction.reply(
-            '🧹 Executando limpeza manual...'
-        );
+        await interaction.reply({
+            content: '🧹 Executando limpeza manual...',
+            ephemeral: true
+        });
 
         const guild = await client.guilds.fetch(GUILD_ID);
 
@@ -251,9 +261,10 @@ client.on('interactionCreate', async interaction => {
 
         if (lista.length === 0) {
 
-            return interaction.reply(
-                '✅ Nenhum membro inativo.'
-            );
+            return interaction.reply({
+                content: '✅ Nenhum membro inativo.',
+                ephemeral: true
+            });
         }
 
         interaction.reply({
@@ -309,6 +320,7 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
         const oldChannel = oldState.channelId;
         const newChannel = newState.channelId;
 
+        // Entrou em call monitorada
         if (
             monitoredChannels.includes(newChannel) &&
             !member.roles.cache.has(ROLE_ID)
@@ -319,6 +331,7 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
             console.log(`✅ Cargo adicionado para ${member.user.tag}`);
         }
 
+        // Saiu da call monitorada
         if (
             monitoredChannels.includes(oldChannel) &&
             !monitoredChannels.includes(newChannel)
@@ -335,6 +348,7 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     }
 });
 
+// LIMPEZA AUTOMÁTICA A CADA 7 DIAS ÀS 03:00
 cron.schedule('0 3 */7 * *', async () => {
 
     console.log('🧹 Iniciando limpeza automática...');
@@ -345,4 +359,3 @@ cron.schedule('0 3 */7 * *', async () => {
 });
 
 client.login(process.env.TOKEN);
-```
