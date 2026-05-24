@@ -1,10 +1,14 @@
+```js
 require('dotenv').config();
 
 const {
     Client,
     GatewayIntentBits,
     Partials,
-    PermissionsBitField
+    PermissionsBitField,
+    SlashCommandBuilder,
+    Routes,
+    REST
 } = require('discord.js');
 
 const cron = require('node-cron');
@@ -27,23 +31,20 @@ const client = new Client({
 });
 
 const ROLE_ID = process.env.ROLE_ID;
-
 const VISITANTE_ROLE_ID = process.env.VISITANTE_ROLE_ID;
-
 const GUILD_ID = process.env.GUILD_ID;
+const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
 
 const monitoredChannels = [
     process.env.VOICE_CHANNEL_1,
     process.env.VOICE_CHANNEL_2
 ];
 
-// CARGOS PROTEGIDOS
 const PROTECTED_ROLES = [
-    '1504501768011124917', // Staff
-    '1504502396766650570'  // Caller
+    '1504501768011124917',
+    '1504502396766650570'
 ];
 
-// ID OFICIAL RAID HELPER
 const RAID_HELPER_ID = '579155972115660803';
 
 const db = new sqlite3.Database('./database.sqlite');
@@ -63,14 +64,204 @@ function updateActivity(userId) {
     `, [userId, Date.now()]);
 }
 
-client.once('ready', () => {
+async function executarLimpeza(guild) {
+
+    const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+
+    const members = await guild.members.fetch();
+
+    const limite = Date.now() - (7 * 24 * 60 * 60 * 1000);
+
+    let removidos = 0;
+
+    members.forEach(member => {
+
+        if (member.user.bot) return;
+
+        if (
+            member.permissions.has(
+                PermissionsBitField.Flags.Administrator
+            )
+        ) return;
+
+        const hasProtectedRole = member.roles.cache.some(role =>
+            PROTECTED_ROLES.includes(role.id)
+        );
+
+        if (hasProtectedRole) return;
+
+        db.get(`
+            SELECT lastActivity
+            FROM activity
+            WHERE userId = ?
+        `, [member.id], async (err, row) => {
+
+            if (err) return;
+
+            const ultima = row?.lastActivity || 0;
+
+            if (ultima < limite) {
+
+                try {
+
+                    const rolesToRemove = member.roles.cache.filter(role =>
+                        role.id !== guild.id &&
+                        role.id !== VISITANTE_ROLE_ID
+                    );
+
+                    await member.roles.remove(rolesToRemove);
+
+                    await member.roles.add(VISITANTE_ROLE_ID);
+
+                    removidos++;
+
+                    console.log(`🧹 Limpo: ${member.user.tag}`);
+
+                    if (logChannel) {
+
+                        logChannel.send(
+                            `🧹 ${member.user.tag} foi movido para Visitante por inatividade.`
+                        );
+                    }
+
+                } catch (e) {
+
+                    console.error(e);
+                }
+            }
+        });
+    });
+
+    setTimeout(() => {
+
+        if (logChannel) {
+
+            logChannel.send(
+                `✅ Limpeza concluída. ${removidos} membros foram limpos.`
+            );
+        }
+
+    }, 5000);
+}
+
+client.once('ready', async () => {
 
     console.log(`✅ Bot online: ${client.user.tag}`);
+
+    const commands = [
+
+        new SlashCommandBuilder()
+            .setName('cleandc')
+            .setDescription('Executa limpeza manual'),
+
+        new SlashCommandBuilder()
+            .setName('atividade')
+            .setDescription('Mostra membros inativos')
+
+    ].map(command => command.toJSON());
+
+    const rest = new REST({ version: '10' })
+        .setToken(process.env.TOKEN);
+
+    try {
+
+        await rest.put(
+            Routes.applicationGuildCommands(
+                client.user.id,
+                GUILD_ID
+            ),
+            { body: commands }
+        );
+
+        console.log('✅ Slash commands registrados.');
+
+    } catch (err) {
+
+        console.error(err);
+    }
 });
 
-//
-// MENSAGENS
-//
+client.on('interactionCreate', async interaction => {
+
+    if (!interaction.isChatInputCommand()) return;
+
+    if (
+        !interaction.member.permissions.has(
+            PermissionsBitField.Flags.Administrator
+        )
+    ) {
+
+        return interaction.reply({
+            content: '❌ Sem permissão.',
+            ephemeral: true
+        });
+    }
+
+    if (interaction.commandName === 'cleandc') {
+
+        await interaction.reply(
+            '🧹 Executando limpeza manual...'
+        );
+
+        const guild = await client.guilds.fetch(GUILD_ID);
+
+        executarLimpeza(guild);
+    }
+
+    if (interaction.commandName === 'atividade') {
+
+        const guild = await client.guilds.fetch(GUILD_ID);
+
+        const members = await guild.members.fetch();
+
+        const limite = Date.now() - (7 * 24 * 60 * 60 * 1000);
+
+        let lista = [];
+
+        for (const member of members.values()) {
+
+            if (member.user.bot) continue;
+
+            const hasProtectedRole = member.roles.cache.some(role =>
+                PROTECTED_ROLES.includes(role.id)
+            );
+
+            if (hasProtectedRole) continue;
+
+            const row = await new Promise(resolve => {
+
+                db.get(`
+                    SELECT lastActivity
+                    FROM activity
+                    WHERE userId = ?
+                `, [member.id], (err, row) => {
+
+                    resolve(row);
+                });
+            });
+
+            const ultima = row?.lastActivity || 0;
+
+            if (ultima < limite) {
+
+                lista.push(member.user.tag);
+            }
+        }
+
+        if (lista.length === 0) {
+
+            return interaction.reply(
+                '✅ Nenhum membro inativo.'
+            );
+        }
+
+        interaction.reply({
+            content:
+                `📋 Inativos:\n\n${lista.join('\n')}`,
+            ephemeral: true
+        });
+    }
+});
 
 client.on('messageCreate', async (message) => {
 
@@ -78,10 +269,6 @@ client.on('messageCreate', async (message) => {
 
     updateActivity(message.author.id);
 });
-
-//
-// REAÇÕES RAID HELPER
-//
 
 client.on('messageReactionAdd', async (reaction, user) => {
 
@@ -108,10 +295,6 @@ client.on('messageReactionAdd', async (reaction, user) => {
     }
 });
 
-//
-// VOICE + ROLE EXISTENTE
-//
-
 client.on('voiceStateUpdate', async (oldState, newState) => {
 
     const member = newState.member;
@@ -125,7 +308,6 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
         const oldChannel = oldState.channelId;
         const newChannel = newState.channelId;
 
-        // Entrou nas calls monitoradas
         if (
             monitoredChannels.includes(newChannel) &&
             !member.roles.cache.has(ROLE_ID)
@@ -136,7 +318,6 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
             console.log(`✅ Cargo adicionado para ${member.user.tag}`);
         }
 
-        // Saiu das calls monitoradas
         if (
             monitoredChannels.includes(oldChannel) &&
             !monitoredChannels.includes(newChannel)
@@ -153,79 +334,14 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     }
 });
 
-//
-// LIMPEZA AUTOMÁTICA
-//
-
-cron.schedule('0 3 */14 * *', async () => {
+cron.schedule('0 3 */7 * *', async () => {
 
     console.log('🧹 Iniciando limpeza automática...');
 
-    try {
+    const guild = await client.guilds.fetch(GUILD_ID);
 
-        const guild = await client.guilds.fetch(GUILD_ID);
-
-        const members = await guild.members.fetch();
-
-        const limite = Date.now() - (14 * 24 * 60 * 60 * 1000);
-
-        members.forEach(member => {
-
-            if (member.user.bot) return;
-
-            // ADMINISTRADOR
-            if (
-                member.permissions.has(
-                    PermissionsBitField.Flags.Administrator
-                )
-            ) return;
-
-            // CARGOS PROTEGIDOS
-            const hasProtectedRole = member.roles.cache.some(role =>
-                PROTECTED_ROLES.includes(role.id)
-            );
-
-            if (hasProtectedRole) return;
-
-            db.get(`
-                SELECT lastActivity
-                FROM activity
-                WHERE userId = ?
-            `, [member.id], async (err, row) => {
-
-                if (err) return;
-
-                const ultima = row?.lastActivity || 0;
-
-                if (ultima < limite) {
-
-                    try {
-
-                        const rolesToRemove = member.roles.cache.filter(role =>
-                            role.id !== guild.id &&
-                            role.id !== VISITANTE_ROLE_ID
-                        );
-
-                        await member.roles.remove(rolesToRemove);
-
-                        await member.roles.add(VISITANTE_ROLE_ID);
-
-                        console.log(`🧹 Limpo: ${member.user.tag}`);
-
-                    } catch (e) {
-
-                        console.log(`Erro ao limpar ${member.user.tag}`);
-
-                        console.error(e);
-                    }
-                }
-            });
-        });
-
-    } catch (err) {
-
-        console.error(err);
-    }
+    executarLimpeza(guild);
 });
 
 client.login(process.env.TOKEN);
+```
