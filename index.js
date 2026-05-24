@@ -255,7 +255,9 @@ client.on('interactionCreate', async interaction => {
 
             if (ultima < limite) {
 
-                lista.push(member.user.tag);
+                lista.push(
+                    `👤 ${member.user.tag}\n🏷️ ${member.displayName}`
+                );
             }
         }
 
@@ -269,7 +271,7 @@ client.on('interactionCreate', async interaction => {
 
         interaction.reply({
             content:
-                `📋 Inativos:\n\n${lista.join('\n')}`,
+                `📋 Inativos:\n\n${lista.join('\n\n')}`,
             ephemeral: true
         });
     }
