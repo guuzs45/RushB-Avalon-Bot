@@ -154,7 +154,7 @@ async function executarLimpeza(guild) {
     }
 }
 
-client.once('ready', async () => {
+client.once('clientReady', async () => {
 
     console.log(`✅ Bot online: ${client.user.tag}`);
 
