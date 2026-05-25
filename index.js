@@ -57,7 +57,7 @@ const voiceSessions = new Map();
 
 const serviceAccountAuth = new JWT({
     email: process.env.GOOGLE_SERVICE_EMAIL,
-    key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    key: JSON.parse(process.env.GOOGLE_PRIVATE_KEY),
     scopes: [
         'https://www.googleapis.com/auth/spreadsheets'
     ]
