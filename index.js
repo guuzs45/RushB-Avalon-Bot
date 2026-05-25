@@ -46,6 +46,9 @@ const PROTECTED_ROLES = [
 
 const RAID_HELPER_ID = '579155972115660803';
 
+const ABSENCE_EMOJI_ID = '612343589070045200';
+const UNREGISTER_EMOJI_ID = '579506704518217739';
+
 // ALTERE ESTA DATA SEMPRE QUE FIZER UM NOVO RESET/REDEPLOY GRANDE
 const DEPLOY_DATE = new Date('2026-05-24T00:00:00');
 
@@ -90,6 +93,30 @@ function updateActivity(userId) {
             userId,
             Date.now(),
             interactions
+        ]);
+    });
+}
+
+async function removerParticipacao(userId) {
+
+    db.get(`
+        SELECT *
+        FROM activity
+        WHERE userId = ?
+    `, [userId], (err, row) => {
+
+        if (err || !row) return;
+
+        const novoTotal =
+            Math.max((row.interactions || 1) - 1, 0);
+
+        db.run(`
+            UPDATE activity
+            SET interactions = ?
+            WHERE userId = ?
+        `, [
+            novoTotal,
+            userId
         ]);
     });
 }
@@ -355,7 +382,7 @@ ${inativos.join('\n')}
     }
 });
 
-// ATIVIDADE APENAS EM REAÇÕES DO RAID HELPER
+// ATIVIDADE EM REAÇÕES DO RAID HELPER
 client.on('messageReactionAdd', async (reaction, user) => {
 
     try {
@@ -373,12 +400,27 @@ client.on('messageReactionAdd', async (reaction, user) => {
             message.webhookId ||
             message.embeds.length > 0;
 
-        if (isRaidHelper) {
+        if (!isRaidHelper) return;
 
-            updateActivity(user.id);
+        const emojiId = reaction.emoji.id;
 
-            console.log(`🎯 Reação RH: ${user.tag}`);
+        // ABSENCE OU UNREGISTER = REMOVE PARTICIPAÇÃO
+        if (
+            emojiId === ABSENCE_EMOJI_ID ||
+            emojiId === UNREGISTER_EMOJI_ID
+        ) {
+
+            await removerParticipacao(user.id);
+
+            console.log(`➖ RH saída: ${user.tag}`);
+
+            return;
         }
+
+        // QUALQUER OUTRA REAÇÃO = PARTICIPAÇÃO
+        updateActivity(user.id);
+
+        console.log(`🎯 RH participação: ${user.tag}`);
 
     } catch (err) {
 
