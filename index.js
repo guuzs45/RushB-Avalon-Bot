@@ -10,9 +10,17 @@ const {
     REST
 } = require('discord.js');
 
-const { GoogleSpreadsheet } = require('google-spreadsheet');
-const { JWT } = require('google-auth-library');
-const cron = require('node-cron');
+const { GoogleSpreadsheet } =
+    require('google-spreadsheet');
+
+const { JWT } =
+    require('google-auth-library');
+
+const cron =
+    require('node-cron');
+
+const serviceAccount =
+    require('./google-service-account.json');
 
 const client = new Client({
     intents: [
@@ -28,10 +36,17 @@ const client = new Client({
     ]
 });
 
-const ROLE_ID = process.env.ROLE_ID;
-const VISITANTE_ROLE_ID = process.env.VISITANTE_ROLE_ID;
-const GUILD_ID = process.env.GUILD_ID;
-const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
+const ROLE_ID =
+    process.env.ROLE_ID;
+
+const VISITANTE_ROLE_ID =
+    process.env.VISITANTE_ROLE_ID;
+
+const GUILD_ID =
+    process.env.GUILD_ID;
+
+const LOG_CHANNEL_ID =
+    process.env.LOG_CHANNEL_ID;
 
 const monitoredChannels = [
     process.env.VOICE_CHANNEL_1,
@@ -43,30 +58,40 @@ const PROTECTED_ROLES = [
     '1504502396766650570'
 ];
 
-const RAID_HELPER_ID = '579155972115660803';
+const RAID_HELPER_ID =
+    '579155972115660803';
 
-const ABSENCE_EMOJI_ID = '612343589070045200';
-const UNREGISTER_EMOJI_ID = '579506704518217739';
+const ABSENCE_EMOJI_ID =
+    '612343589070045200';
+
+const UNREGISTER_EMOJI_ID =
+    '579506704518217739';
 
 const IGNORED_VOICE_CHANNEL =
     '1504505761366282372';
 
-const DEPLOY_DATE = new Date('2026-05-24T00:00:00');
+const DEPLOY_DATE =
+    new Date('2026-05-25T00:00:00');
 
-const voiceSessions = new Map();
+const voiceSessions =
+    new Map();
 
-const serviceAccountAuth = new JWT({
-    email: process.env.GOOGLE_SERVICE_EMAIL,
-    key: JSON.parse(process.env.GOOGLE_PRIVATE_KEY),
-    scopes: [
-        'https://www.googleapis.com/auth/spreadsheets'
-    ]
-});
+const serviceAccountAuth =
+    new JWT({
+        email:
+            serviceAccount.client_email,
+        key:
+            serviceAccount.private_key,
+        scopes: [
+            'https://www.googleapis.com/auth/spreadsheets'
+        ]
+    });
 
-const doc = new GoogleSpreadsheet(
-    process.env.SHEET_ID,
-    serviceAccountAuth
-);
+const doc =
+    new GoogleSpreadsheet(
+        process.env.SHEET_ID,
+        serviceAccountAuth
+    );
 
 let sheet;
 
@@ -76,27 +101,35 @@ async function iniciarSheets() {
 
     sheet = doc.sheetsByIndex[0];
 
-    console.log('✅ Google Sheets conectado.');
+    console.log(
+        '✅ Google Sheets conectado.'
+    );
 }
 
 function formatarData(timestamp) {
 
-    if (!timestamp) return 'Sem atividade';
+    if (!timestamp)
+        return 'Sem atividade';
 
-    return new Date(Number(timestamp))
-        .toLocaleDateString('pt-BR');
+    return new Date(
+        Number(timestamp)
+    ).toLocaleDateString('pt-BR');
 }
 
 async function buscarUsuario(userId) {
 
-    const rows = await sheet.getRows();
+    const rows =
+        await sheet.getRows();
 
-    return rows.find(r => r.get('userId') === userId);
+    return rows.find(
+        r => r.get('userId') === userId
+    );
 }
 
 async function updateActivity(member) {
 
-    const row = await buscarUsuario(member.id);
+    const row =
+        await buscarUsuario(member.id);
 
     if (row) {
 
@@ -112,7 +145,9 @@ async function updateActivity(member) {
 
         row.set(
             'interactions',
-            Number(row.get('interactions') || 0) + 1
+            Number(
+                row.get('interactions') || 0
+            ) + 1
         );
 
         row.set(
@@ -125,23 +160,31 @@ async function updateActivity(member) {
     } else {
 
         await sheet.addRow({
-            userId: member.id,
-            userTag: member.user.tag,
-            displayName: member.displayName,
-            interactions: 1,
-            lastActivity: Date.now()
+            userId:
+                member.id,
+            userTag:
+                member.user.tag,
+            displayName:
+                member.displayName,
+            interactions:
+                1,
+            lastActivity:
+                Date.now()
         });
     }
 }
 
 async function removerParticipacao(member) {
 
-    const row = await buscarUsuario(member.id);
+    const row =
+        await buscarUsuario(member.id);
 
     if (!row) return;
 
     const atual =
-        Number(row.get('interactions') || 0);
+        Number(
+            row.get('interactions') || 0
+        );
 
     row.set(
         'interactions',
@@ -154,19 +197,25 @@ async function removerParticipacao(member) {
 async function executarLimpeza(guild) {
 
     const logChannel =
-        guild.channels.cache.get(LOG_CHANNEL_ID);
+        guild.channels.cache.get(
+            LOG_CHANNEL_ID
+        );
 
     const members =
         await guild.members.fetch();
 
     const limite =
-        Date.now() - (7 * 24 * 60 * 60 * 1000);
+        Date.now() -
+        (7 * 24 * 60 * 60 * 1000);
 
     let removidos = 0;
 
-    for (const member of members.values()) {
+    for (
+        const member of members.values()
+    ) {
 
-        if (member.user.bot) continue;
+        if (member.user.bot)
+            continue;
 
         if (
             member.permissions.has(
@@ -175,14 +224,20 @@ async function executarLimpeza(guild) {
         ) continue;
 
         const hasProtectedRole =
-            member.roles.cache.some(role =>
-                PROTECTED_ROLES.includes(role.id)
+            member.roles.cache.some(
+                role =>
+                    PROTECTED_ROLES.includes(
+                        role.id
+                    )
             );
 
-        if (hasProtectedRole) continue;
+        if (hasProtectedRole)
+            continue;
 
         const row =
-            await buscarUsuario(member.id);
+            await buscarUsuario(
+                member.id
+            );
 
         const ultima =
             row?.get('lastActivity') ||
@@ -190,23 +245,35 @@ async function executarLimpeza(guild) {
             Date.now();
 
         const diasDesdeDeploy =
-            (Date.now() - DEPLOY_DATE.getTime()) /
-            (1000 * 60 * 60 * 24);
+            (
+                Date.now() -
+                DEPLOY_DATE.getTime()
+            ) /
+            (
+                1000 *
+                60 *
+                60 *
+                24
+            );
 
         const protegerSemAtividade =
             !row &&
             diasDesdeDeploy < 5;
 
-        if (protegerSemAtividade) continue;
+        if (
+            protegerSemAtividade
+        ) continue;
 
         if (ultima < limite) {
 
             try {
 
                 const rolesToRemove =
-                    member.roles.cache.filter(role =>
-                        role.id !== guild.id &&
-                        role.id !== VISITANTE_ROLE_ID
+                    member.roles.cache.filter(
+                        role =>
+                            role.id !== guild.id &&
+                            role.id !==
+                                VISITANTE_ROLE_ID
                     );
 
                 await member.roles.remove(
@@ -245,40 +312,57 @@ async function executarLimpeza(guild) {
     }
 }
 
-client.once('clientReady', async () => {
+client.once(
+    'clientReady',
+    async () => {
 
-    console.log(`✅ Bot online: ${client.user.tag}`);
+        console.log(
+            `✅ Bot online: ${client.user.tag}`
+        );
 
-    await iniciarSheets();
+        await iniciarSheets();
 
-    const commands = [
+        const commands = [
 
-        new SlashCommandBuilder()
-            .setName('cleandc')
-            .setDescription('Executa limpeza manual'),
+            new SlashCommandBuilder()
+                .setName('cleandc')
+                .setDescription(
+                    'Executa limpeza manual'
+                ),
 
-        new SlashCommandBuilder()
-            .setName('atividade')
-            .setDescription('Mostra relatório de atividade')
+            new SlashCommandBuilder()
+                .setName('atividade')
+                .setDescription(
+                    'Mostra relatório de atividade'
+                )
 
-    ].map(command => command.toJSON());
+        ].map(
+            command =>
+                command.toJSON()
+        );
 
-    const rest =
-        new REST({ version: '10' })
-            .setToken(process.env.TOKEN);
+        const rest =
+            new REST({
+                version: '10'
+            }).setToken(
+                process.env.TOKEN
+            );
 
-    await rest.put(
-        Routes.applicationGuildCommands(
-            client.user.id,
-            GUILD_ID
-        ),
-        { body: commands }
-    );
+        await rest.put(
+            Routes.applicationGuildCommands(
+                client.user.id,
+                GUILD_ID
+            ),
+            {
+                body: commands
+            }
+        );
 
-    console.log(
-        '✅ Slash commands registrados.'
-    );
-});
+        console.log(
+            '✅ Slash commands registrados.'
+        );
+    }
+);
 
 client.on(
     'interactionCreate',
@@ -295,7 +379,8 @@ client.on(
         ) {
 
             return interaction.reply({
-                content: '❌ Sem permissão.',
+                content:
+                    '❌ Sem permissão.',
                 ephemeral: true
             });
         }
@@ -316,7 +401,9 @@ client.on(
                     GUILD_ID
                 );
 
-            executarLimpeza(guild);
+            executarLimpeza(
+                guild
+            );
         }
 
         if (
@@ -334,7 +421,13 @@ client.on(
 
             const limite =
                 Date.now() -
-                (7 * 24 * 60 * 60 * 1000);
+                (
+                    7 *
+                    24 *
+                    60 *
+                    60 *
+                    1000
+                );
 
             let ativos = [];
             let inativos = [];
@@ -346,16 +439,19 @@ client.on(
                 const member of members.values()
             ) {
 
-                if (member.user.bot) continue;
+                if (member.user.bot)
+                    continue;
 
                 const hasProtectedRole =
-                    member.roles.cache.some(role =>
-                        PROTECTED_ROLES.includes(
-                            role.id
-                        )
+                    member.roles.cache.some(
+                        role =>
+                            PROTECTED_ROLES.includes(
+                                role.id
+                            )
                     );
 
-                if (hasProtectedRole) continue;
+                if (hasProtectedRole)
+                    continue;
 
                 const row =
                     rows.find(
@@ -365,16 +461,22 @@ client.on(
                     );
 
                 const ultima =
-                    row?.get('lastActivity') ||
+                    row?.get(
+                        'lastActivity'
+                    ) ||
                     member.joinedTimestamp ||
                     Date.now();
 
                 const interactions =
                     Number(
-                        row?.get('interactions') || 0
+                        row?.get(
+                            'interactions'
+                        ) || 0
                     );
 
-                if (interactions > 0) {
+                if (
+                    interactions > 0
+                ) {
 
                     ativos.push({
                         user:
@@ -401,22 +503,33 @@ client.on(
             );
 
             const ranking =
-                ativos.map((a, index) => {
+                ativos.map(
+                    (a, index) => {
 
-                    let posicao;
+                        let posicao;
 
-                    if (index === 0)
-                        posicao = '🥇';
-                    else if (index === 1)
-                        posicao = '🥈';
-                    else if (index === 2)
-                        posicao = '🥉';
-                    else
-                        posicao =
-                            `${index + 1}.`;
+                        if (
+                            index === 0
+                        )
+                            posicao = '🥇';
 
-                    return `${posicao} ${a.user} • ${a.nome} • ${a.total} | 📅 ${formatarData(a.ultima)}`;
-                });
+                        else if (
+                            index === 1
+                        )
+                            posicao = '🥈';
+
+                        else if (
+                            index === 2
+                        )
+                            posicao = '🥉';
+
+                        else
+                            posicao =
+                                `${index + 1}.`;
+
+                        return `${posicao} ${a.user} • ${a.nome} • ${a.total} | 📅 ${formatarData(a.ultima)}`;
+                    }
+                );
 
             let resposta =
 `📊 Relatório de Atividade
@@ -425,7 +538,9 @@ client.on(
 ${ranking.join('\n')}
 `;
 
-            if (inativos.length > 0) {
+            if (
+                inativos.length > 0
+            ) {
 
                 resposta += `
 
@@ -435,7 +550,8 @@ ${inativos.join('\n')}
             }
 
             interaction.reply({
-                content: resposta,
+                content:
+                    resposta,
                 ephemeral: true
             });
         }
@@ -444,13 +560,19 @@ ${inativos.join('\n')}
 
 client.on(
     'messageReactionAdd',
-    async (reaction, user) => {
+    async (
+        reaction,
+        user
+    ) => {
 
         try {
 
-            if (user.bot) return;
+            if (user.bot)
+                return;
 
-            if (reaction.partial) {
+            if (
+                reaction.partial
+            ) {
                 await reaction.fetch();
             }
 
@@ -471,7 +593,9 @@ client.on(
                 message.webhookId ||
                 message.embeds.length > 0;
 
-            if (!isRaidHelper) return;
+            if (
+                !isRaidHelper
+            ) return;
 
             const emojiId =
                 reaction.emoji.id;
@@ -494,7 +618,9 @@ client.on(
                 return;
             }
 
-            await updateActivity(member);
+            await updateActivity(
+                member
+            );
 
             console.log(
                 `🎯 RH participação: ${user.tag}`
@@ -509,7 +635,10 @@ client.on(
 
 client.on(
     'voiceStateUpdate',
-    async (oldState, newState) => {
+    async (
+        oldState,
+        newState
+    ) => {
 
         const member =
             newState.member;
@@ -525,7 +654,7 @@ client.on(
         const newChannel =
             newState.channelId;
 
-        // ENTRADA EM CALL
+        // ENTRADA
         if (
             !oldChannel &&
             newChannel &&
@@ -539,7 +668,7 @@ client.on(
             );
         }
 
-        // SAÍDA DA CALL
+        // SAÍDA
         if (
             oldChannel &&
             !newChannel &&
@@ -552,33 +681,38 @@ client.on(
                     member.id
                 );
 
-            if (!entrou) return;
+            if (!entrou)
+                return;
 
             const tempo =
-                Date.now() - entrou;
+                Date.now() -
+                entrou;
 
             const minutos =
-                tempo / 1000 / 60;
+                tempo /
+                1000 /
+                60;
 
             voiceSessions.delete(
                 member.id
             );
 
-            if (minutos >= 30) {
+            if (
+                minutos >= 30
+            ) {
 
                 await updateActivity(
                     member
                 );
 
                 console.log(
-                    `🎤 Call válida: ${member.user.tag} (${Math.floor(minutos)} min)`
+                    `🎤 Call válida: ${member.user.tag}`
                 );
             }
         }
 
         try {
 
-            // Entrou em call monitorada
             if (
                 monitoredChannels.includes(
                     newChannel
@@ -597,7 +731,6 @@ client.on(
                 );
             }
 
-            // Saiu da call monitorada
             if (
                 monitoredChannels.includes(
                     oldChannel
@@ -636,7 +769,9 @@ cron.schedule(
                 GUILD_ID
             );
 
-        executarLimpeza(guild);
+        executarLimpeza(
+            guild
+        );
 
     },
     {
@@ -645,4 +780,6 @@ cron.schedule(
     }
 );
 
-client.login(process.env.TOKEN);
+client.login(
+    process.env.TOKEN
+);
