@@ -20,7 +20,9 @@ const cron =
     require('node-cron');
 
 const serviceAccount =
-    require('./google-service-account.json');
+    JSON.parse(
+        process.env.GOOGLE_SERVICE_ACCOUNT
+    );
 
 const client = new Client({
     intents: [
@@ -654,7 +656,6 @@ client.on(
         const newChannel =
             newState.channelId;
 
-        // ENTRADA
         if (
             !oldChannel &&
             newChannel &&
@@ -668,7 +669,6 @@ client.on(
             );
         }
 
-        // SAÍDA
         if (
             oldChannel &&
             !newChannel &&
