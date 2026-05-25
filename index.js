@@ -1,5 +1,3 @@
-// sistema atualizado
-
 require('dotenv').config();
 
 const {
@@ -12,8 +10,9 @@ const {
     REST
 } = require('discord.js');
 
+const { GoogleSpreadsheet } = require('google-spreadsheet');
+const { JWT } = require('google-auth-library');
 const cron = require('node-cron');
-const sqlite3 = require('sqlite3').verbose();
 
 const client = new Client({
     intents: [
@@ -40,8 +39,8 @@ const monitoredChannels = [
 ];
 
 const PROTECTED_ROLES = [
-    '1504501768011124917', // Staff
-    '1504502396766650570'  // Caller
+    '1504501768011124917',
+    '1504502396766650570'
 ];
 
 const RAID_HELPER_ID = '579155972115660803';
@@ -49,85 +48,119 @@ const RAID_HELPER_ID = '579155972115660803';
 const ABSENCE_EMOJI_ID = '612343589070045200';
 const UNREGISTER_EMOJI_ID = '579506704518217739';
 
-// ALTERE ESTA DATA SEMPRE QUE FIZER UM NOVO RESET/REDEPLOY GRANDE
+const IGNORED_VOICE_CHANNEL =
+    '1504505761366282372';
+
 const DEPLOY_DATE = new Date('2026-05-24T00:00:00');
 
-const db = new sqlite3.Database('./database.sqlite');
+const voiceSessions = new Map();
 
-db.serialize(() => {
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS activity (
-            userId TEXT PRIMARY KEY,
-            lastActivity INTEGER,
-            interactions INTEGER DEFAULT 0
-        )
-    `);
+const serviceAccountAuth = new JWT({
+    email: process.env.GOOGLE_SERVICE_EMAIL,
+    key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    scopes: [
+        'https://www.googleapis.com/auth/spreadsheets'
+    ]
 });
+
+const doc = new GoogleSpreadsheet(
+    process.env.SHEET_ID,
+    serviceAccountAuth
+);
+
+let sheet;
+
+async function iniciarSheets() {
+
+    await doc.loadInfo();
+
+    sheet = doc.sheetsByIndex[0];
+
+    console.log('✅ Google Sheets conectado.');
+}
 
 function formatarData(timestamp) {
 
     if (!timestamp) return 'Sem atividade';
 
-    return new Date(timestamp).toLocaleDateString('pt-BR');
+    return new Date(Number(timestamp))
+        .toLocaleDateString('pt-BR');
 }
 
-function updateActivity(userId) {
+async function buscarUsuario(userId) {
 
-    db.get(`
-        SELECT interactions
-        FROM activity
-        WHERE userId = ?
-    `, [userId], (err, row) => {
+    const rows = await sheet.getRows();
 
-        const interactions = (row?.interactions || 0) + 1;
-
-        db.run(`
-            INSERT OR REPLACE INTO activity(
-                userId,
-                lastActivity,
-                interactions
-            )
-            VALUES (?, ?, ?)
-        `, [
-            userId,
-            Date.now(),
-            interactions
-        ]);
-    });
+    return rows.find(r => r.get('userId') === userId);
 }
 
-async function removerParticipacao(userId) {
+async function updateActivity(member) {
 
-    db.get(`
-        SELECT *
-        FROM activity
-        WHERE userId = ?
-    `, [userId], (err, row) => {
+    const row = await buscarUsuario(member.id);
 
-        if (err || !row) return;
+    if (row) {
 
-        const novoTotal =
-            Math.max((row.interactions || 1) - 1, 0);
+        row.set(
+            'userTag',
+            member.user.tag
+        );
 
-        db.run(`
-            UPDATE activity
-            SET interactions = ?
-            WHERE userId = ?
-        `, [
-            novoTotal,
-            userId
-        ]);
-    });
+        row.set(
+            'displayName',
+            member.displayName
+        );
+
+        row.set(
+            'interactions',
+            Number(row.get('interactions') || 0) + 1
+        );
+
+        row.set(
+            'lastActivity',
+            Date.now()
+        );
+
+        await row.save();
+
+    } else {
+
+        await sheet.addRow({
+            userId: member.id,
+            userTag: member.user.tag,
+            displayName: member.displayName,
+            interactions: 1,
+            lastActivity: Date.now()
+        });
+    }
+}
+
+async function removerParticipacao(member) {
+
+    const row = await buscarUsuario(member.id);
+
+    if (!row) return;
+
+    const atual =
+        Number(row.get('interactions') || 0);
+
+    row.set(
+        'interactions',
+        Math.max(atual - 1, 0)
+    );
+
+    await row.save();
 }
 
 async function executarLimpeza(guild) {
 
-    const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
+    const logChannel =
+        guild.channels.cache.get(LOG_CHANNEL_ID);
 
-    const members = await guild.members.fetch();
+    const members =
+        await guild.members.fetch();
 
-    const limite = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const limite =
+        Date.now() - (7 * 24 * 60 * 60 * 1000);
 
     let removidos = 0;
 
@@ -141,43 +174,27 @@ async function executarLimpeza(guild) {
             )
         ) continue;
 
-        const hasProtectedRole = member.roles.cache.some(role =>
-            PROTECTED_ROLES.includes(role.id)
-        );
+        const hasProtectedRole =
+            member.roles.cache.some(role =>
+                PROTECTED_ROLES.includes(role.id)
+            );
 
         if (hasProtectedRole) continue;
 
-        const row = await new Promise(resolve => {
-
-            db.get(`
-                SELECT *
-                FROM activity
-                WHERE userId = ?
-            `, [member.id], (err, row) => {
-
-                if (err) {
-
-                    console.error(err);
-
-                    return resolve(null);
-                }
-
-                resolve(row);
-            });
-        });
+        const row =
+            await buscarUsuario(member.id);
 
         const ultima =
-            row?.lastActivity ||
+            row?.get('lastActivity') ||
             member.joinedTimestamp ||
             Date.now();
 
-        // PROTEÇÃO DE REDEPLOY
         const diasDesdeDeploy =
             (Date.now() - DEPLOY_DATE.getTime()) /
             (1000 * 60 * 60 * 24);
 
         const protegerSemAtividade =
-            !row?.lastActivity &&
+            !row &&
             diasDesdeDeploy < 5;
 
         if (protegerSemAtividade) continue;
@@ -186,18 +203,25 @@ async function executarLimpeza(guild) {
 
             try {
 
-                const rolesToRemove = member.roles.cache.filter(role =>
-                    role.id !== guild.id &&
-                    role.id !== VISITANTE_ROLE_ID
+                const rolesToRemove =
+                    member.roles.cache.filter(role =>
+                        role.id !== guild.id &&
+                        role.id !== VISITANTE_ROLE_ID
+                    );
+
+                await member.roles.remove(
+                    rolesToRemove
                 );
 
-                await member.roles.remove(rolesToRemove);
-
-                await member.roles.add(VISITANTE_ROLE_ID);
+                await member.roles.add(
+                    VISITANTE_ROLE_ID
+                );
 
                 removidos++;
 
-                console.log(`🧹 Limpo: ${member.user.tag}`);
+                console.log(
+                    `🧹 Limpo: ${member.user.tag}`
+                );
 
                 if (logChannel) {
 
@@ -225,6 +249,8 @@ client.once('clientReady', async () => {
 
     console.log(`✅ Bot online: ${client.user.tag}`);
 
+    await iniciarSheets();
+
     const commands = [
 
         new SlashCommandBuilder()
@@ -237,254 +263,386 @@ client.once('clientReady', async () => {
 
     ].map(command => command.toJSON());
 
-    const rest = new REST({ version: '10' })
-        .setToken(process.env.TOKEN);
+    const rest =
+        new REST({ version: '10' })
+            .setToken(process.env.TOKEN);
 
-    try {
+    await rest.put(
+        Routes.applicationGuildCommands(
+            client.user.id,
+            GUILD_ID
+        ),
+        { body: commands }
+    );
 
-        await rest.put(
-            Routes.applicationGuildCommands(
-                client.user.id,
-                GUILD_ID
-            ),
-            { body: commands }
-        );
-
-        console.log('✅ Slash commands registrados.');
-
-    } catch (err) {
-
-        console.error(err);
-    }
+    console.log(
+        '✅ Slash commands registrados.'
+    );
 });
 
-client.on('interactionCreate', async interaction => {
+client.on(
+    'interactionCreate',
+    async interaction => {
 
-    if (!interaction.isChatInputCommand()) return;
+        if (
+            !interaction.isChatInputCommand()
+        ) return;
 
-    if (
-        !interaction.member.permissions.has(
-            PermissionsBitField.Flags.Administrator
-        )
-    ) {
+        if (
+            !interaction.member.permissions.has(
+                PermissionsBitField.Flags.Administrator
+            )
+        ) {
 
-        return interaction.reply({
-            content: '❌ Sem permissão.',
-            ephemeral: true
-        });
-    }
-
-    if (interaction.commandName === 'cleandc') {
-
-        await interaction.reply({
-            content: '🧹 Executando limpeza manual...',
-            ephemeral: true
-        });
-
-        const guild = await client.guilds.fetch(GUILD_ID);
-
-        executarLimpeza(guild);
-    }
-
-    if (interaction.commandName === 'atividade') {
-
-        const guild = await client.guilds.fetch(GUILD_ID);
-
-        const members = await guild.members.fetch();
-
-        const limite = Date.now() - (7 * 24 * 60 * 60 * 1000);
-
-        let inativos = [];
-        let ativos = [];
-
-        for (const member of members.values()) {
-
-            if (member.user.bot) continue;
-
-            const hasProtectedRole = member.roles.cache.some(role =>
-                PROTECTED_ROLES.includes(role.id)
-            );
-
-            if (hasProtectedRole) continue;
-
-            const row = await new Promise(resolve => {
-
-                db.get(`
-                    SELECT *
-                    FROM activity
-                    WHERE userId = ?
-                `, [member.id], (err, row) => {
-
-                    resolve(row);
-                });
+            return interaction.reply({
+                content: '❌ Sem permissão.',
+                ephemeral: true
             });
-
-            const ultima =
-                row?.lastActivity ||
-                member.joinedTimestamp ||
-                Date.now();
-
-            const interactions = row?.interactions || 0;
-
-            if (interactions > 0) {
-
-                ativos.push({
-                    user: member.user.tag,
-                    nome: member.displayName,
-                    total: interactions,
-                    ultima: ultima
-                });
-            }
-
-            if (ultima < limite) {
-
-                inativos.push(
-                    `• ${member.user.tag} → ${member.displayName} | ${formatarData(ultima)}`
-                );
-            }
         }
 
-        ativos.sort((a, b) => b.total - a.total);
+        if (
+            interaction.commandName ===
+            'cleandc'
+        ) {
 
-        const rankingAtivos = ativos
-            .map((a, index) => {
-
-                let posicao;
-
-                if (index === 0) posicao = '🥇';
-                else if (index === 1) posicao = '🥈';
-                else if (index === 2) posicao = '🥉';
-                else posicao = `${index + 1}.`;
-
-                return `${posicao} ${a.user} • ${a.nome} • ${a.total} | 📅 ${formatarData(a.ultima)}`;
+            await interaction.reply({
+                content:
+                    '🧹 Executando limpeza manual...',
+                ephemeral: true
             });
 
-        let resposta =
+            const guild =
+                await client.guilds.fetch(
+                    GUILD_ID
+                );
+
+            executarLimpeza(guild);
+        }
+
+        if (
+            interaction.commandName ===
+            'atividade'
+        ) {
+
+            const guild =
+                await client.guilds.fetch(
+                    GUILD_ID
+                );
+
+            const members =
+                await guild.members.fetch();
+
+            const limite =
+                Date.now() -
+                (7 * 24 * 60 * 60 * 1000);
+
+            let ativos = [];
+            let inativos = [];
+
+            const rows =
+                await sheet.getRows();
+
+            for (
+                const member of members.values()
+            ) {
+
+                if (member.user.bot) continue;
+
+                const hasProtectedRole =
+                    member.roles.cache.some(role =>
+                        PROTECTED_ROLES.includes(
+                            role.id
+                        )
+                    );
+
+                if (hasProtectedRole) continue;
+
+                const row =
+                    rows.find(
+                        r =>
+                            r.get('userId') ===
+                            member.id
+                    );
+
+                const ultima =
+                    row?.get('lastActivity') ||
+                    member.joinedTimestamp ||
+                    Date.now();
+
+                const interactions =
+                    Number(
+                        row?.get('interactions') || 0
+                    );
+
+                if (interactions > 0) {
+
+                    ativos.push({
+                        user:
+                            member.user.tag,
+                        nome:
+                            member.displayName,
+                        total:
+                            interactions,
+                        ultima
+                    });
+                }
+
+                if (ultima < limite) {
+
+                    inativos.push(
+                        `• ${member.user.tag} → ${member.displayName} | ${formatarData(ultima)}`
+                    );
+                }
+            }
+
+            ativos.sort(
+                (a, b) =>
+                    b.total - a.total
+            );
+
+            const ranking =
+                ativos.map((a, index) => {
+
+                    let posicao;
+
+                    if (index === 0)
+                        posicao = '🥇';
+                    else if (index === 1)
+                        posicao = '🥈';
+                    else if (index === 2)
+                        posicao = '🥉';
+                    else
+                        posicao =
+                            `${index + 1}.`;
+
+                    return `${posicao} ${a.user} • ${a.nome} • ${a.total} | 📅 ${formatarData(a.ultima)}`;
+                });
+
+            let resposta =
 `📊 Relatório de Atividade
 
 🟢 Ranking de Atividade
-${rankingAtivos.join('\n')}
+${ranking.join('\n')}
 `;
 
-        if (inativos.length > 0) {
+            if (inativos.length > 0) {
 
-            resposta += `
+                resposta += `
 
 🔴 Inativos há mais de 7 dias
 ${inativos.join('\n')}
 `;
-        }
+            }
 
-        interaction.reply({
-            content: resposta,
-            ephemeral: true
-        });
+            interaction.reply({
+                content: resposta,
+                ephemeral: true
+            });
+        }
     }
-});
+);
 
-// ATIVIDADE EM REAÇÕES DO RAID HELPER
-client.on('messageReactionAdd', async (reaction, user) => {
+client.on(
+    'messageReactionAdd',
+    async (reaction, user) => {
 
-    try {
+        try {
 
-        if (user.bot) return;
+            if (user.bot) return;
 
-        if (reaction.partial) {
-            await reaction.fetch();
+            if (reaction.partial) {
+                await reaction.fetch();
+            }
+
+            const message =
+                reaction.message;
+
+            const guild =
+                message.guild;
+
+            const member =
+                await guild.members.fetch(
+                    user.id
+                );
+
+            const isRaidHelper =
+                message.author.id ===
+                    RAID_HELPER_ID ||
+                message.webhookId ||
+                message.embeds.length > 0;
+
+            if (!isRaidHelper) return;
+
+            const emojiId =
+                reaction.emoji.id;
+
+            if (
+                emojiId ===
+                    ABSENCE_EMOJI_ID ||
+                emojiId ===
+                    UNREGISTER_EMOJI_ID
+            ) {
+
+                await removerParticipacao(
+                    member
+                );
+
+                console.log(
+                    `➖ RH saída: ${user.tag}`
+                );
+
+                return;
+            }
+
+            await updateActivity(member);
+
+            console.log(
+                `🎯 RH participação: ${user.tag}`
+            );
+
+        } catch (err) {
+
+            console.error(err);
         }
+    }
+);
 
-        const message = reaction.message;
+client.on(
+    'voiceStateUpdate',
+    async (oldState, newState) => {
 
-        const isRaidHelper =
-            message.author.id === RAID_HELPER_ID ||
-            message.webhookId ||
-            message.embeds.length > 0;
+        const member =
+            newState.member;
 
-        if (!isRaidHelper) return;
-
-        const emojiId = reaction.emoji.id;
-
-        // ABSENCE OU UNREGISTER = REMOVE PARTICIPAÇÃO
         if (
-            emojiId === ABSENCE_EMOJI_ID ||
-            emojiId === UNREGISTER_EMOJI_ID
+            !member ||
+            member.user.bot
+        ) return;
+
+        const oldChannel =
+            oldState.channelId;
+
+        const newChannel =
+            newState.channelId;
+
+        // ENTRADA EM CALL
+        if (
+            !oldChannel &&
+            newChannel &&
+            newChannel !==
+                IGNORED_VOICE_CHANNEL
         ) {
 
-            await removerParticipacao(user.id);
-
-            console.log(`➖ RH saída: ${user.tag}`);
-
-            return;
+            voiceSessions.set(
+                member.id,
+                Date.now()
+            );
         }
 
-        // QUALQUER OUTRA REAÇÃO = PARTICIPAÇÃO
-        updateActivity(user.id);
-
-        console.log(`🎯 RH participação: ${user.tag}`);
-
-    } catch (err) {
-
-        console.error(err);
-    }
-});
-
-// ATIVIDADE APENAS EM CALLS
-client.on('voiceStateUpdate', async (oldState, newState) => {
-
-    const member = newState.member;
-
-    if (!member || member.user.bot) return;
-
-    // REGISTRA ATIVIDADE EM QUALQUER CALL
-    if (oldState.channelId !== newState.channelId) {
-
-        updateActivity(member.user.id);
-    }
-
-    try {
-
-        const oldChannel = oldState.channelId;
-        const newChannel = newState.channelId;
-
-        // Entrou em call monitorada
+        // SAÍDA DA CALL
         if (
-            monitoredChannels.includes(newChannel) &&
-            !member.roles.cache.has(ROLE_ID)
+            oldChannel &&
+            !newChannel &&
+            oldChannel !==
+                IGNORED_VOICE_CHANNEL
         ) {
 
-            await member.roles.add(ROLE_ID);
+            const entrou =
+                voiceSessions.get(
+                    member.id
+                );
 
-            console.log(`✅ Cargo adicionado para ${member.user.tag}`);
+            if (!entrou) return;
+
+            const tempo =
+                Date.now() - entrou;
+
+            const minutos =
+                tempo / 1000 / 60;
+
+            voiceSessions.delete(
+                member.id
+            );
+
+            if (minutos >= 30) {
+
+                await updateActivity(
+                    member
+                );
+
+                console.log(
+                    `🎤 Call válida: ${member.user.tag} (${Math.floor(minutos)} min)`
+                );
+            }
         }
 
-        // Saiu da call monitorada
-        if (
-            monitoredChannels.includes(oldChannel) &&
-            !monitoredChannels.includes(newChannel)
-        ) {
+        try {
 
-            await member.roles.remove(ROLE_ID);
+            // Entrou em call monitorada
+            if (
+                monitoredChannels.includes(
+                    newChannel
+                ) &&
+                !member.roles.cache.has(
+                    ROLE_ID
+                )
+            ) {
 
-            console.log(`❌ Cargo removido de ${member.user.tag}`);
+                await member.roles.add(
+                    ROLE_ID
+                );
+
+                console.log(
+                    `✅ Cargo adicionado para ${member.user.tag}`
+                );
+            }
+
+            // Saiu da call monitorada
+            if (
+                monitoredChannels.includes(
+                    oldChannel
+                ) &&
+                !monitoredChannels.includes(
+                    newChannel
+                )
+            ) {
+
+                await member.roles.remove(
+                    ROLE_ID
+                );
+
+                console.log(
+                    `❌ Cargo removido de ${member.user.tag}`
+                );
+            }
+
+        } catch (err) {
+
+            console.error(err);
         }
-
-    } catch (err) {
-
-        console.error(err);
     }
-});
+);
 
-// VERIFICA TODOS OS DIAS ÀS 05:00 - HORÁRIO DE SÃO PAULO
-cron.schedule('0 5 * * *', async () => {
+cron.schedule(
+    '0 5 * * *',
+    async () => {
 
-    console.log('🧹 Iniciando verificação automática...');
+        console.log(
+            '🧹 Iniciando verificação automática...'
+        );
 
-    const guild = await client.guilds.fetch(GUILD_ID);
+        const guild =
+            await client.guilds.fetch(
+                GUILD_ID
+            );
 
-    executarLimpeza(guild);
+        executarLimpeza(guild);
 
-}, {
-    timezone: 'America/Sao_Paulo'
-});
+    },
+    {
+        timezone:
+            'America/Sao_Paulo'
+    }
+);
 
 client.login(process.env.TOKEN);
