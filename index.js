@@ -78,6 +78,9 @@ const DEPLOY_DATE =
 const voiceSessions =
     new Map();
 
+const raidParticipations =
+    new Map();
+
 const serviceAccountAuth =
     new JWT({
         email:
@@ -602,6 +605,10 @@ client.on(
             const emojiId =
                 reaction.emoji.id;
 
+            const participationKey =
+                `${message.id}_${user.id}`;
+
+            // ABSENCE / UNREGISTER
             if (
                 emojiId ===
                     ABSENCE_EMOJI_ID ||
@@ -609,16 +616,47 @@ client.on(
                     UNREGISTER_EMOJI_ID
             ) {
 
-                await removerParticipacao(
-                    member
-                );
+                if (
+                    raidParticipations.has(
+                        participationKey
+                    )
+                ) {
+
+                    raidParticipations.delete(
+                        participationKey
+                    );
+
+                    await removerParticipacao(
+                        member
+                    );
+
+                    console.log(
+                        `➖ RH saída: ${user.tag}`
+                    );
+                }
+
+                return;
+            }
+
+            // JÁ PARTICIPOU NESSE EVENTO
+            if (
+                raidParticipations.has(
+                    participationKey
+                )
+            ) {
 
                 console.log(
-                    `➖ RH saída: ${user.tag}`
+                    `🔁 Troca de classe ignorada: ${user.tag}`
                 );
 
                 return;
             }
+
+            // NOVA PARTICIPAÇÃO
+            raidParticipations.set(
+                participationKey,
+                true
+            );
 
             await updateActivity(
                 member
