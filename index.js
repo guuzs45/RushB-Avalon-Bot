@@ -7,14 +7,17 @@ const {
     PermissionsBitField,
     SlashCommandBuilder,
     Routes,
-    REST
+    REST,
+    EmbedBuilder
 } = require('discord.js');
 
-const { GoogleSpreadsheet } =
-    require('google-spreadsheet');
+const {
+    GoogleSpreadsheet
+} = require('google-spreadsheet');
 
-const { JWT } =
-    require('google-auth-library');
+const {
+    JWT
+} = require('google-auth-library');
 
 const cron =
     require('node-cron');
@@ -297,9 +300,53 @@ async function executarLimpeza(guild) {
 
                 if (logChannel) {
 
-                    await logChannel.send(
-                        `🧹 ${member.user.tag} foi movido para Visitante.\n📅 Última atividade: ${formatarData(ultima)}`
-                    );
+                    const rolesRemovidas =
+                        rolesToRemove
+                            .map(
+                                r => `• ${r.name}`
+                            )
+                            .join('\n');
+
+                    const embed =
+                        new EmbedBuilder()
+                            .setColor('#ff0000')
+                            .setTitle(
+                                '🧹 Limpeza Automática'
+                            )
+                            .addFields(
+                                {
+                                    name:
+                                        '👤 Usuário',
+                                    value:
+                                        member.user.tag
+                                },
+                                {
+                                    name:
+                                        '🏷️ Apelido',
+                                    value:
+                                        member.displayName
+                                },
+                                {
+                                    name:
+                                        '📅 Última atividade',
+                                    value:
+                                        formatarData(
+                                            ultima
+                                        )
+                                },
+                                {
+                                    name:
+                                        '🗑️ Tags removidas',
+                                    value:
+                                        rolesRemovidas ||
+                                        'Nenhuma'
+                                }
+                            )
+                            .setTimestamp();
+
+                    await logChannel.send({
+                        embeds: [embed]
+                    });
                 }
 
             } catch (e) {
@@ -497,7 +544,7 @@ client.on(
                 if (ultima < limite) {
 
                     inativos.push(
-                        `• ${member.user.tag} → ${member.displayName} | ${formatarData(ultima)}`
+                        `• ${member.user.tag} → ${member.displayName}\n└ 📅 ${formatarData(ultima)}`
                     );
                 }
             }
@@ -532,31 +579,35 @@ client.on(
                             posicao =
                                 `${index + 1}.`;
 
-                        return `${posicao} ${a.user} • ${a.nome} • ${a.total} | 📅 ${formatarData(a.ultima)}`;
+                        return `${posicao} ${a.user} • ${a.nome}\n└ ${a.total} participações • 📅 ${formatarData(a.ultima)}`;
                     }
                 );
 
-            let resposta =
-`📊 Relatório de Atividade
-
-🟢 Ranking de Atividade
-${ranking.join('\n')}
-`;
-
-            if (
-                inativos.length > 0
-            ) {
-
-                resposta += `
-
-🔴 Inativos há mais de 7 dias
-${inativos.join('\n')}
-`;
-            }
+            const embed =
+                new EmbedBuilder()
+                    .setColor('#5865F2')
+                    .setTitle(
+                        '📊 Relatório de Atividade'
+                    )
+                    .setDescription(
+                        [
+                            '## 🟢 Ranking de Atividade',
+                            ranking.join('\n\n'),
+                            '',
+                            '## 🔴 Inativos',
+                            inativos.length > 0
+                                ? inativos.join('\n\n')
+                                : 'Nenhum inativo.'
+                        ].join('\n')
+                    )
+                    .setFooter({
+                        text:
+                            'Sistema de atividade Avalon'
+                    })
+                    .setTimestamp();
 
             interaction.reply({
-                content:
-                    resposta,
+                embeds: [embed],
                 ephemeral: true
             });
         }
@@ -608,7 +659,6 @@ client.on(
             const participationKey =
                 `${message.id}_${user.id}`;
 
-            // ABSENCE / UNREGISTER
             if (
                 emojiId ===
                     ABSENCE_EMOJI_ID ||
@@ -629,30 +679,20 @@ client.on(
                     await removerParticipacao(
                         member
                     );
-
-                    console.log(
-                        `➖ RH saída: ${user.tag}`
-                    );
                 }
 
                 return;
             }
 
-            // JÁ PARTICIPOU NESSE EVENTO
             if (
                 raidParticipations.has(
                     participationKey
                 )
             ) {
 
-                console.log(
-                    `🔁 Troca de classe ignorada: ${user.tag}`
-                );
-
                 return;
             }
 
-            // NOVA PARTICIPAÇÃO
             raidParticipations.set(
                 participationKey,
                 true
@@ -660,10 +700,6 @@ client.on(
 
             await updateActivity(
                 member
-            );
-
-            console.log(
-                `🎯 RH participação: ${user.tag}`
             );
 
         } catch (err) {
@@ -694,6 +730,7 @@ client.on(
         const newChannel =
             newState.channelId;
 
+        // ENTROU
         if (
             !oldChannel &&
             newChannel &&
@@ -703,10 +740,14 @@ client.on(
 
             voiceSessions.set(
                 member.id,
-                Date.now()
+                {
+                    joinedAt:
+                        Date.now()
+                }
             );
         }
 
+        // SAIU
         if (
             oldChannel &&
             !newChannel &&
@@ -714,17 +755,17 @@ client.on(
                 IGNORED_VOICE_CHANNEL
         ) {
 
-            const entrou =
+            const session =
                 voiceSessions.get(
                     member.id
                 );
 
-            if (!entrou)
+            if (!session)
                 return;
 
             const tempo =
                 Date.now() -
-                entrou;
+                session.joinedAt;
 
             const minutos =
                 tempo /
@@ -735,8 +776,29 @@ client.on(
                 member.id
             );
 
+            const oldChannelObj =
+                oldState.guild.channels.cache.get(
+                    oldChannel
+                );
+
+            const membrosNaCall =
+                oldChannelObj?.members.filter(
+                    m => !m.user.bot
+                ).size || 0;
+
+            const mutado =
+                oldState.selfMute ||
+                oldState.serverMute;
+
+            const surdo =
+                oldState.selfDeaf ||
+                oldState.serverDeaf;
+
             if (
-                minutos >= 30
+                minutos >= 60 &&
+                membrosNaCall >= 2 &&
+                !mutado &&
+                !surdo
             ) {
 
                 await updateActivity(
@@ -763,10 +825,6 @@ client.on(
                 await member.roles.add(
                     ROLE_ID
                 );
-
-                console.log(
-                    `✅ Cargo adicionado para ${member.user.tag}`
-                );
             }
 
             if (
@@ -780,10 +838,6 @@ client.on(
 
                 await member.roles.remove(
                     ROLE_ID
-                );
-
-                console.log(
-                    `❌ Cargo removido de ${member.user.tag}`
                 );
             }
 
