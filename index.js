@@ -134,12 +134,37 @@ async function buscarUsuario(userId) {
     );
 }
 
-async function updateActivity(member) {
+async function updateActivity(member, type = 'general') {
 
     const row =
         await buscarUsuario(member.id);
 
+    const hoje =
+        new Date()
+            .toLocaleDateString('pt-BR');
+
     if (row) {
+
+        const ultimaCall =
+            row.get('lastCallDate');
+
+        const interactions =
+            Number(
+                row.get('interactions') || 0
+            );
+
+        // LIMITE DE 1 CALL POR DIA
+        if (
+            type === 'call' &&
+            ultimaCall === hoje
+        ) {
+
+            console.log(
+                `⛔ ${member.user.tag} já recebeu ponto de call hoje.`
+            );
+
+            return;
+        }
 
         row.set(
             'userTag',
@@ -153,9 +178,7 @@ async function updateActivity(member) {
 
         row.set(
             'interactions',
-            Number(
-                row.get('interactions') || 0
-            ) + 1
+            interactions + 1
         );
 
         row.set(
@@ -163,21 +186,39 @@ async function updateActivity(member) {
             Date.now()
         );
 
+        if (type === 'call') {
+
+            row.set(
+                'lastCallDate',
+                hoje
+            );
+        }
+
         await row.save();
 
     } else {
 
         await sheet.addRow({
+
             userId:
                 member.id,
+
             userTag:
                 member.user.tag,
+
             displayName:
                 member.displayName,
+
             interactions:
                 1,
+
             lastActivity:
-                Date.now()
+                Date.now(),
+
+            lastCallDate:
+                type === 'call'
+                    ? hoje
+                    : ''
         });
     }
 }
@@ -293,10 +334,6 @@ async function executarLimpeza(guild) {
                 );
 
                 removidos++;
-
-                console.log(
-                    `🧹 Limpo: ${member.user.tag}`
-                );
 
                 if (logChannel) {
 
@@ -526,7 +563,6 @@ client.on(
                         ) || 0
                     );
 
-                // APENAS ATIVOS NO RANKING
                 if (
                     interactions > 0 &&
                     ultima >= limite
@@ -703,7 +739,8 @@ client.on(
             );
 
             await updateActivity(
-                member
+                member,
+                'rh'
             );
 
         } catch (err) {
@@ -734,7 +771,6 @@ client.on(
         const newChannel =
             newState.channelId;
 
-        // ENTROU
         if (
             !oldChannel &&
             newChannel &&
@@ -751,7 +787,6 @@ client.on(
             );
         }
 
-        // SAIU
         if (
             oldChannel &&
             !newChannel &&
@@ -806,7 +841,8 @@ client.on(
             ) {
 
                 await updateActivity(
-                    member
+                    member,
+                    'call'
                 );
 
                 console.log(
