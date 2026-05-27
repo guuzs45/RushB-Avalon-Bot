@@ -526,8 +526,10 @@ client.on(
                         ) || 0
                     );
 
+                // APENAS ATIVOS NO RANKING
                 if (
-                    interactions > 0
+                    interactions > 0 &&
+                    ultima >= limite
                 ) {
 
                     ativos.push({
@@ -592,7 +594,9 @@ client.on(
                     .setDescription(
                         [
                             '## 🟢 Ranking de Atividade',
-                            ranking.join('\n\n'),
+                            ranking.length > 0
+                                ? ranking.join('\n\n')
+                                : 'Nenhum ativo.',
                             '',
                             '## 🔴 Inativos',
                             inativos.length > 0
