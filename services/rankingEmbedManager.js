@@ -89,9 +89,9 @@ function criarTop3(
 
                 `## ${medals[index]} ${player.nickname}`,
 
-                `🎭 Classe mais jogada: ${emojiClasse(player.classe)} ${nomeClasse(player.classe)}`,
+                `Classe mais jogada: ${emojiClasse(player.classe)} ${nomeClasse(player.classe)}`,
 
-                `🏰 Total de DGs: ${player.totalDG}`,
+                `Total de DGs: ${player.totalDG}`,
 
                 `⚔️ Dano recorde: ${formatarMilhoes(player.maxDano)}`,
 
@@ -143,7 +143,7 @@ function criarLista(
 
                 `\`${pos}.\` ${emojiClasse(player.classe)} **${player.nickname}**`,
 
-                `└ 🏰 ${player.totalDG} DGs • ⚔️ ${formatarMilhoes(player.maxDano)} • 🔥 ${formatarNumero(player.maxDps)}`
+                `└ ${player.totalDG} DGs • ⚔️ ${formatarMilhoes(player.maxDano)} • 🔥 ${formatarNumero(player.maxDps)}`
             ]
 
             .join('\n');
@@ -192,13 +192,11 @@ async function atualizarRankingEmbed(
 
                 [
 
-                    '## 🔥 Top 3\n',
-
                     criarTop3(
                         ranking
                     ),
 
-                    '\n\n## 📜 Ranking Geral\n',
+                    '\n\n',
 
                     criarLista(
                         ranking,
