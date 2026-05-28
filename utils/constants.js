@@ -1,53 +1,93 @@
 const CLASS_MAPPINGS = {
 
     Main_Tank: {
-        emoji: '👑',
-        label: 'Caller'
+
+        nome:
+            'Caller',
+
+        emoji:
+            '👑'
     },
 
     Off_Tank: {
-        emoji: '🛡️',
-        label: 'Off Tank'
+
+        nome:
+            'Off Tank',
+
+        emoji:
+            '🛡️'
     },
 
     Arcano_Elevado: {
-        emoji: '⏳',
-        label: 'Arcano Elevado'
+
+        nome:
+            'Arcano Elevado',
+
+        emoji:
+            '⏳'
     },
 
     Arcano_Silence: {
-        emoji: '🔮',
-        label: 'Arcano Silence'
+
+        nome:
+            'Arcano Silence',
+
+        emoji:
+            '🔮'
     },
 
     Main_Healer: {
-        emoji: '💚',
-        label: 'Main Healer'
+
+        nome:
+            'Main Healer',
+
+        emoji:
+            '💚'
     },
 
     Bruxo: {
-        emoji: '☠️',
-        label: 'Bruxo'
+
+        nome:
+            'Bruxo',
+
+        emoji:
+            '☠️'
     },
 
     Foice_de_Cristal: {
-        emoji: '⚔️',
-        label: 'Foice de Cristal'
+
+        nome:
+            'Foice de Cristal',
+
+        emoji:
+            '⚔️'
     },
 
     Repetidor: {
-        emoji: '🏹',
-        label: 'Repetidor'
+
+        nome:
+            'Repetidor',
+
+        emoji:
+            '🏹'
     },
 
     Scout: {
-        emoji: '👀',
-        label: 'Scout'
+
+        nome:
+            'Scout',
+
+        emoji:
+            '👀'
     },
 
     Cobra: {
-        emoji: '🐍',
-        label: 'Cobra'
+
+        nome:
+            'Cobra',
+
+        emoji:
+            '🐍'
     }
 };
 
