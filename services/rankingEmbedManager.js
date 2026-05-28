@@ -43,7 +43,7 @@ function nomeClasse(
 
     return CLASS_MAPPINGS[
         classe
-    ]?.label || 'Desconhecida';
+    ]?.label || classe;
 }
 
 function formatarNumero(
@@ -62,7 +62,16 @@ function formatarDps(
 ) {
 
     return Math.floor(
-        Number(numero || 0)
+
+        Number(
+
+            String(numero || 0)
+
+                .replace(
+                    ',',
+                    '.'
+                )
+        )
     );
 }
 
@@ -111,7 +120,7 @@ function criarTop3(
 
         }
 
-    ).join('\n\n──────────────');
+    ).join('\n\n──────────────\n\n');
 }
 
 function criarLista(
@@ -205,7 +214,7 @@ async function atualizarRankingEmbed(
                         ranking
                     ),
 
-                    '\n\n',
+                    '\n\n──────────────\n\n',
 
                     criarLista(
                         ranking,
