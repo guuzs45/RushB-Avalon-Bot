@@ -1,6 +1,8 @@
+```javascript
 require('dotenv').config();
 
 const {
+
     Client,
     GatewayIntentBits,
     Partials,
@@ -9,15 +11,26 @@ const {
     Routes,
     REST,
     EmbedBuilder
-} = require('discord.js');
+
+} = require(
+    'discord.js'
+);
 
 const {
+
     GoogleSpreadsheet
-} = require('google-spreadsheet');
+
+} = require(
+    'google-spreadsheet'
+);
 
 const {
+
     JWT
-} = require('google-auth-library');
+
+} = require(
+    'google-auth-library'
+);
 
 const cron =
     require('node-cron');
@@ -25,7 +38,9 @@ const cron =
 const {
 
     executarRegistroDG,
-    processarModalDG
+    processarModalDG,
+    abrirModalMetter,
+    processarMetter
 
 } = require(
     './commands/registrardg'
@@ -36,19 +51,24 @@ const serviceAccount =
         process.env.GOOGLE_SERVICE_ACCOUNT
     );
 
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessageReactions
-    ],
-    partials: [
-        Partials.Message,
-        Partials.Channel,
-        Partials.Reaction
-    ]
-});
+const client =
+    new Client({
+
+        intents: [
+
+            GatewayIntentBits.Guilds,
+            GatewayIntentBits.GuildVoiceStates,
+            GatewayIntentBits.GuildMembers,
+            GatewayIntentBits.GuildMessageReactions
+        ],
+
+        partials: [
+
+            Partials.Message,
+            Partials.Channel,
+            Partials.Reaction
+        ]
+    });
 
 const ROLE_ID =
     process.env.ROLE_ID;
@@ -63,11 +83,13 @@ const LOG_CHANNEL_ID =
     process.env.LOG_CHANNEL_ID;
 
 const monitoredChannels = [
+
     process.env.VOICE_CHANNEL_1,
     process.env.VOICE_CHANNEL_2
 ];
 
 const PROTECTED_ROLES = [
+
     '1504501768011124917',
     '1504502396766650570'
 ];
@@ -85,7 +107,9 @@ const IGNORED_VOICE_CHANNEL =
     '1504505761366282372';
 
 const DEPLOY_DATE =
-    new Date('2026-05-25T00:00:00');
+    new Date(
+        '2026-05-25T00:00:00'
+    );
 
 const voiceSessions =
     new Map();
@@ -95,17 +119,22 @@ const raidParticipations =
 
 const serviceAccountAuth =
     new JWT({
+
         email:
             serviceAccount.client_email,
+
         key:
             serviceAccount.private_key,
+
         scopes: [
+
             'https://www.googleapis.com/auth/spreadsheets'
         ]
     });
 
 const doc =
     new GoogleSpreadsheet(
+
         process.env.SHEET_ID,
         serviceAccountAuth
     );
@@ -116,59 +145,82 @@ async function iniciarSheets() {
 
     await doc.loadInfo();
 
-    sheet = doc.sheetsByIndex[0];
+    sheet =
+        doc.sheetsByIndex[0];
 
     console.log(
         '✅ Google Sheets conectado.'
     );
 }
 
-function formatarData(timestamp) {
+function formatarData(
+    timestamp
+) {
 
     if (!timestamp)
         return 'Sem atividade';
 
     return new Date(
         Number(timestamp)
-    ).toLocaleDateString('pt-BR');
+    ).toLocaleDateString(
+        'pt-BR'
+    );
 }
 
-async function buscarUsuario(userId) {
+async function buscarUsuario(
+    userId
+) {
 
     const rows =
         await sheet.getRows();
 
     return rows.find(
-        r => r.get('userId') === userId
+
+        r =>
+            r.get('userId') ===
+            userId
     );
 }
 
-async function updateActivity(member, type = 'general') {
+async function updateActivity(
+    member,
+    type = 'general'
+) {
 
     const row =
-        await buscarUsuario(member.id);
+        await buscarUsuario(
+            member.id
+        );
 
     const hoje =
         new Date()
-            .toLocaleDateString('pt-BR');
+            .toLocaleDateString(
+                'pt-BR'
+            );
 
     if (row) {
 
         const ultimaCall =
-            row.get('lastCallDate');
+            row.get(
+                'lastCallDate'
+            );
 
         const interactions =
             Number(
-                row.get('interactions') || 0
+
+                row.get(
+                    'interactions'
+                ) || 0
             );
 
-        // LIMITE DE 1 CALL POR DIA
         if (
+
             type === 'call' &&
             ultimaCall === hoje
         ) {
 
             console.log(
+
                 `⛔ ${member.user.tag} já recebeu ponto de call hoje.`
             );
 
@@ -195,7 +247,9 @@ async function updateActivity(member, type = 'general') {
             Date.now()
         );
 
-        if (type === 'call') {
+        if (
+            type === 'call'
+        ) {
 
             row.set(
                 'lastCallDate',
@@ -232,27 +286,42 @@ async function updateActivity(member, type = 'general') {
     }
 }
 
-async function removerParticipacao(member) {
+async function removerParticipacao(
+    member
+) {
 
     const row =
-        await buscarUsuario(member.id);
+        await buscarUsuario(
+            member.id
+        );
 
-    if (!row) return;
+    if (!row)
+        return;
 
     const atual =
         Number(
-            row.get('interactions') || 0
+
+            row.get(
+                'interactions'
+            ) || 0
         );
 
     row.set(
+
         'interactions',
-        Math.max(atual - 1, 0)
+
+        Math.max(
+            atual - 1,
+            0
+        )
     );
 
     await row.save();
 }
 
-async function executarLimpeza(guild) {
+async function executarLimpeza(
+    guild
+) {
 
     const logChannel =
         guild.channels.cache.get(
@@ -264,32 +333,47 @@ async function executarLimpeza(guild) {
 
     const limite =
         Date.now() -
-        (7 * 24 * 60 * 60 * 1000);
+        (
+            7 *
+            24 *
+            60 *
+            60 *
+            1000
+        );
 
     let removidos = 0;
 
     for (
-        const member of members.values()
+        const member of
+        members.values()
     ) {
 
-        if (member.user.bot)
+        if (
+            member.user.bot
+        )
             continue;
 
         if (
+
             member.permissions.has(
-                PermissionsBitField.Flags.Administrator
+                PermissionsBitField
+                    .Flags
+                    .Administrator
             )
         ) continue;
 
         const hasProtectedRole =
             member.roles.cache.some(
+
                 role =>
                     PROTECTED_ROLES.includes(
                         role.id
                     )
             );
 
-        if (hasProtectedRole)
+        if (
+            hasProtectedRole
+        )
             continue;
 
         const row =
@@ -298,15 +382,21 @@ async function executarLimpeza(guild) {
             );
 
         const ultima =
-            row?.get('lastActivity') ||
+            row?.get(
+                'lastActivity'
+            ) ||
+
             member.joinedTimestamp ||
             Date.now();
 
         const diasDesdeDeploy =
             (
+
                 Date.now() -
                 DEPLOY_DATE.getTime()
+
             ) /
+
             (
                 1000 *
                 60 *
@@ -320,18 +410,22 @@ async function executarLimpeza(guild) {
 
         if (
             protegerSemAtividade
-        ) continue;
+        )
+            continue;
 
-        if (ultima < limite) {
+        if (
+            ultima < limite
+        ) {
 
             try {
 
                 const rolesToRemove =
                     member.roles.cache.filter(
+
                         role =>
+
                             role.id !== guild.id &&
-                            role.id !==
-                                VISITANTE_ROLE_ID
+                            role.id !== VISITANTE_ROLE_ID
                     );
 
                 await member.roles.remove(
@@ -344,50 +438,72 @@ async function executarLimpeza(guild) {
 
                 removidos++;
 
-                if (logChannel) {
+                if (
+                    logChannel
+                ) {
 
                     const rolesRemovidas =
                         rolesToRemove
+
                             .map(
                                 r => `• ${r.name}`
                             )
+
                             .join('\n');
 
                     const embed =
                         new EmbedBuilder()
-                            .setColor('#ff0000')
+
+                            .setColor(
+                                '#ff0000'
+                            )
+
                             .setTitle(
                                 '🧹 Limpeza Automática'
                             )
+
                             .addFields(
+
                                 {
+
                                     name:
                                         '👤 Usuário',
+
                                     value:
                                         member.user.tag
                                 },
+
                                 {
+
                                     name:
                                         '🏷️ Apelido',
+
                                     value:
                                         member.displayName
                                 },
+
                                 {
+
                                     name:
                                         '📅 Última atividade',
+
                                     value:
                                         formatarData(
                                             ultima
                                         )
                                 },
+
                                 {
+
                                     name:
                                         '🗑️ Tags removidas',
+
                                     value:
                                         rolesRemovidas ||
                                         'Nenhuma'
                                 }
                             )
+
                             .setTimestamp();
 
                     await logChannel.send({
@@ -402,19 +518,25 @@ async function executarLimpeza(guild) {
         }
     }
 
-    if (logChannel) {
+    if (
+        logChannel
+    ) {
 
         await logChannel.send(
+
             `✅ Limpeza concluída. ${removidos} membros foram limpos.`
         );
     }
 }
 
 client.once(
+
     'clientReady',
+
     async () => {
 
         console.log(
+
             `✅ Bot online: ${client.user.tag}`
         );
 
@@ -422,41 +544,57 @@ client.once(
 
         const commands = [
 
-    new SlashCommandBuilder()
-        .setName('cleandc')
-        .setDescription(
-            'Executa limpeza manual'
-        ),
+            new SlashCommandBuilder()
 
-    new SlashCommandBuilder()
-        .setName('atividade')
-        .setDescription(
-            'Mostra relatório de atividade'
-        ),
+                .setName(
+                    'cleandc'
+                )
 
-    new SlashCommandBuilder()
-        .setName('registrardg')
-        .setDescription(
-            'Registrar DG'
-        )
+                .setDescription(
+                    'Executa limpeza manual'
+                ),
 
-].map(
+            new SlashCommandBuilder()
+
+                .setName(
+                    'atividade'
+                )
+
+                .setDescription(
+                    'Mostra relatório de atividade'
+                ),
+
+            new SlashCommandBuilder()
+
+                .setName(
+                    'registrardg'
+                )
+
+                .setDescription(
+                    'Registrar DG'
+                )
+
+        ].map(
             command =>
                 command.toJSON()
         );
 
         const rest =
             new REST({
+
                 version: '10'
             }).setToken(
                 process.env.TOKEN
             );
 
         await rest.put(
+
             Routes.applicationGuildCommands(
+
                 client.user.id,
                 GUILD_ID
             ),
+
             {
                 body: commands
             }
@@ -469,33 +607,64 @@ client.once(
 );
 
 client.on(
+
     'interactionCreate',
+
     async interaction => {
 
-        // MODAL DG
+        // BOTÃO
+        if (
+            interaction.isButton()
+        ) {
+
+            if (
+
+                interaction.customId ===
+                'enviar_metter'
+            ) {
+
+                return abrirModalMetter(
+                    interaction
+                );
+            }
+        }
+
+        // MODAIS
         if (
             interaction.isModalSubmit()
         ) {
 
             if (
+
                 interaction.customId ===
                 'registrar_dg_modal'
             ) {
 
                 return processarModalDG(
-                    interaction,
-                    client
+                    interaction
+                );
+            }
+
+            if (
+
+                interaction.customId ===
+                'metter_modal'
+            ) {
+
+                return processarMetter(
+                    interaction
                 );
             }
         }
 
-        // SLASH COMMANDS
+        // COMANDOS
         if (
             !interaction.isChatInputCommand()
         ) return;
 
         // REGISTRAR DG
         if (
+
             interaction.commandName ===
             'registrardg'
         ) {
@@ -505,29 +674,38 @@ client.on(
             );
         }
 
-        // PERMISSÃO ADMIN
+        // ADMIN
         if (
+
             !interaction.member.permissions.has(
-                PermissionsBitField.Flags.Administrator
+
+                PermissionsBitField
+                    .Flags
+                    .Administrator
             )
         ) {
 
             return interaction.reply({
+
                 content:
                     '❌ Sem permissão.',
+
                 ephemeral: true
             });
         }
 
-        // CLEAN DC
+        // CLEAN
         if (
+
             interaction.commandName ===
             'cleandc'
         ) {
 
             await interaction.reply({
+
                 content:
                     '🧹 Executando limpeza manual...',
+
                 ephemeral: true
             });
 
@@ -543,6 +721,7 @@ client.on(
 
         // ATIVIDADE
         if (
+
             interaction.commandName ===
             'atividade'
         ) {
@@ -557,6 +736,7 @@ client.on(
 
             const limite =
                 Date.now() -
+
                 (
                     7 *
                     24 *
@@ -572,25 +752,32 @@ client.on(
                 await sheet.getRows();
 
             for (
-                const member of members.values()
+                const member of
+                members.values()
             ) {
 
-                if (member.user.bot)
+                if (
+                    member.user.bot
+                )
                     continue;
 
                 const hasProtectedRole =
                     member.roles.cache.some(
+
                         role =>
                             PROTECTED_ROLES.includes(
                                 role.id
                             )
                     );
 
-                if (hasProtectedRole)
+                if (
+                    hasProtectedRole
+                )
                     continue;
 
                 const row =
                     rows.find(
+
                         r =>
                             r.get('userId') ===
                             member.id
@@ -600,47 +787,59 @@ client.on(
                     row?.get(
                         'lastActivity'
                     ) ||
+
                     member.joinedTimestamp ||
                     Date.now();
 
                 const interactions =
                     Number(
+
                         row?.get(
                             'interactions'
                         ) || 0
                     );
 
                 if (
+
                     interactions > 0 &&
                     ultima >= limite
                 ) {
 
                     ativos.push({
+
                         user:
                             member.user.tag,
+
                         nome:
                             member.displayName,
+
                         total:
                             interactions,
+
                         ultima
                     });
                 }
 
-                if (ultima < limite) {
+                if (
+                    ultima < limite
+                ) {
 
                     inativos.push(
+
                         `• ${member.user.tag} → ${member.displayName}\n└ 📅 ${formatarData(ultima)}`
                     );
                 }
             }
 
             ativos.sort(
+
                 (a, b) =>
                     b.total - a.total
             );
 
             const ranking =
                 ativos.map(
+
                     (a, index) => {
 
                         let posicao;
@@ -648,19 +847,23 @@ client.on(
                         if (
                             index === 0
                         )
+
                             posicao = '🥇';
 
                         else if (
                             index === 1
                         )
+
                             posicao = '🥈';
 
                         else if (
                             index === 2
                         )
+
                             posicao = '🥉';
 
                         else
+
                             posicao =
                                 `${index + 1}.`;
 
@@ -670,31 +873,48 @@ client.on(
 
             const embed =
                 new EmbedBuilder()
-                    .setColor('#5865F2')
+
+                    .setColor(
+                        '#5865F2'
+                    )
+
                     .setTitle(
                         '📊 Relatório de Atividade'
                     )
+
                     .setDescription(
+
                         [
+
                             '## 🟢 Ranking de Atividade',
+
                             ranking.length > 0
                                 ? ranking.join('\n\n')
                                 : 'Nenhum ativo.',
+
                             '',
+
                             '## 🔴 Inativos',
+
                             inativos.length > 0
                                 ? inativos.join('\n\n')
                                 : 'Nenhum inativo.'
+
                         ].join('\n')
                     )
+
                     .setFooter({
+
                         text:
                             'Sistema de atividade Avalon'
                     })
+
                     .setTimestamp();
 
             interaction.reply({
+
                 embeds: [embed],
+
                 ephemeral: true
             });
         }
@@ -702,7 +922,9 @@ client.on(
 );
 
 client.on(
+
     'messageReactionAdd',
+
     async (
         reaction,
         user
@@ -710,12 +932,15 @@ client.on(
 
         try {
 
-            if (user.bot)
+            if (
+                user.bot
+            )
                 return;
 
             if (
                 reaction.partial
             ) {
+
                 await reaction.fetch();
             }
 
@@ -731,9 +956,12 @@ client.on(
                 );
 
             const isRaidHelper =
+
                 message.author.id ===
-                    RAID_HELPER_ID ||
+                RAID_HELPER_ID ||
+
                 message.webhookId ||
+
                 message.embeds.length > 0;
 
             if (
@@ -747,13 +975,16 @@ client.on(
                 `${message.id}_${user.id}`;
 
             if (
+
                 emojiId ===
-                    ABSENCE_EMOJI_ID ||
+                ABSENCE_EMOJI_ID ||
+
                 emojiId ===
-                    UNREGISTER_EMOJI_ID
+                UNREGISTER_EMOJI_ID
             ) {
 
                 if (
+
                     raidParticipations.has(
                         participationKey
                     )
@@ -772,6 +1003,7 @@ client.on(
             }
 
             if (
+
                 raidParticipations.has(
                     participationKey
                 )
@@ -798,7 +1030,9 @@ client.on(
 );
 
 client.on(
+
     'voiceStateUpdate',
+
     async (
         oldState,
         newState
@@ -808,6 +1042,7 @@ client.on(
             newState.member;
 
         if (
+
             !member ||
             member.user.bot
         ) return;
@@ -819,6 +1054,7 @@ client.on(
             newState.channelId;
 
         if (
+
             !oldChannel &&
             newChannel &&
             newChannel !==
@@ -826,7 +1062,9 @@ client.on(
         ) {
 
             voiceSessions.set(
+
                 member.id,
+
                 {
                     joinedAt:
                         Date.now()
@@ -835,6 +1073,7 @@ client.on(
         }
 
         if (
+
             oldChannel &&
             !newChannel &&
             oldChannel !==
@@ -868,19 +1107,24 @@ client.on(
                 );
 
             const membrosNaCall =
+
                 oldChannelObj?.members.filter(
+
                     m => !m.user.bot
                 ).size || 0;
 
             const mutado =
+
                 oldState.selfMute ||
                 oldState.serverMute;
 
             const surdo =
+
                 oldState.selfDeaf ||
                 oldState.serverDeaf;
 
             if (
+
                 minutos >= 60 &&
                 membrosNaCall >= 2 &&
                 !mutado &&
@@ -893,6 +1137,7 @@ client.on(
                 );
 
                 console.log(
+
                     `🎤 Call válida: ${member.user.tag}`
                 );
             }
@@ -901,9 +1146,11 @@ client.on(
         try {
 
             if (
+
                 monitoredChannels.includes(
                     newChannel
                 ) &&
+
                 !member.roles.cache.has(
                     ROLE_ID
                 )
@@ -915,9 +1162,11 @@ client.on(
             }
 
             if (
+
                 monitoredChannels.includes(
                     oldChannel
                 ) &&
+
                 !monitoredChannels.includes(
                     newChannel
                 )
@@ -936,7 +1185,9 @@ client.on(
 );
 
 cron.schedule(
+
     '0 5 * * *',
+
     async () => {
 
         console.log(
@@ -953,6 +1204,7 @@ cron.schedule(
         );
 
     },
+
     {
         timezone:
             'America/Sao_Paulo'
@@ -962,3 +1214,4 @@ cron.schedule(
 client.login(
     process.env.TOKEN
 );
+```

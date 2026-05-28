@@ -13,9 +13,7 @@ const {
 
 const {
 
-    DG_ALLOWED_ROLES,
-    RAID_ACTIVE_CHANNEL_ID,
-    RAID_ARCHIVE_CHANNEL_ID
+    DG_ALLOWED_ROLES
 
 } = require(
     '../utils/constants'
@@ -28,10 +26,18 @@ const dgSessions =
 
 const {
 
-    extrairParticipantesRH
+    parseMetter
 
 } = require(
-    '../services/raidHelper'
+    '../services/metterParser'
+);
+
+const {
+
+    criarPaginaClasses
+
+} = require(
+    '../utils/embeds'
 );
 
 async function executarRegistroDG(
@@ -49,8 +55,10 @@ async function executarRegistroDG(
     if (!autorizado) {
 
         return interaction.reply({
+
             content:
                 '❌ Sem permissão.',
+
             ephemeral: true
         });
     }
@@ -129,27 +137,6 @@ async function executarRegistroDG(
 
             .setRequired(true);
 
-    const mensagemInput =
-        new TextInputBuilder()
-
-            .setCustomId(
-                'mensagem_id'
-            )
-
-            .setLabel(
-                'ID da mensagem RH'
-            )
-
-            .setPlaceholder(
-                '150999999999999999'
-            )
-
-            .setStyle(
-                TextInputStyle.Short
-            )
-
-            .setRequired(true);
-
     modal.addComponents(
 
         new ActionRowBuilder()
@@ -165,11 +152,6 @@ async function executarRegistroDG(
         new ActionRowBuilder()
             .addComponents(
                 qtdInput
-            ),
-
-        new ActionRowBuilder()
-            .addComponents(
-                mensagemInput
             )
     );
 
@@ -179,8 +161,7 @@ async function executarRegistroDG(
 }
 
 async function processarModalDG(
-    interaction,
-    client
+    interaction
 ) {
 
     const data =
@@ -200,64 +181,13 @@ async function processarModalDG(
             )
         );
 
-    const mensagemId =
-        interaction.fields.getTextInputValue(
-            'mensagem_id'
-        );
-
-    let evento = null;
-
-    const canais = [
-
-        client.channels.cache.get(
-            RAID_ACTIVE_CHANNEL_ID
-        ),
-
-        client.channels.cache.get(
-            RAID_ARCHIVE_CHANNEL_ID
-        )
-    ];
-
-    for (const canal of canais) {
-
-        try {
-
-            evento =
-                await canal.messages.fetch(
-                    mensagemId
-                );
-
-            if (evento)
-                break;
-
-        } catch {}
-    }
-
-    if (!evento) {
-
-        return interaction.reply({
-            content:
-                '❌ Evento não encontrado.',
-            ephemeral: true
-        });
-    }
-
-    const participantes =
-        await extrairParticipantesRH(
-            evento
-        );
-
     dgSessions.set(
         interaction.user.id,
         {
 
             data,
             horario,
-            qtd,
-
-            restante: qtd,
-
-            participantes
+            qtd
         }
     );
 
@@ -285,7 +215,7 @@ async function processarModalDG(
 🕒 ${horario}
 🏰 ${qtd} DG(s)
 
-👥 ${Object.keys(participantes).length} participantes encontrados.`,
+Clique abaixo para enviar o metter.`,
 
         components: [
 
@@ -299,8 +229,114 @@ async function processarModalDG(
     });
 }
 
+async function abrirModalMetter(
+    interaction
+) {
+
+    const modal =
+        new ModalBuilder()
+
+            .setCustomId(
+                'metter_modal'
+            )
+
+            .setTitle(
+                'Enviar Metter'
+            );
+
+    const input =
+        new TextInputBuilder()
+
+            .setCustomId(
+                'metter'
+            )
+
+            .setLabel(
+                'Cole o metter'
+            )
+
+            .setStyle(
+                TextInputStyle.Paragraph
+            )
+
+            .setRequired(true);
+
+    modal.addComponents(
+
+        new ActionRowBuilder()
+
+            .addComponents(
+                input
+            )
+    );
+
+    await interaction.showModal(
+        modal
+    );
+}
+
+async function processarMetter(
+    interaction
+) {
+
+    const texto =
+        interaction.fields.getTextInputValue(
+            'metter'
+        );
+
+    const players =
+        parseMetter(
+            texto
+        );
+
+    if (
+        players.length === 0
+    ) {
+
+        return interaction.reply({
+
+            content:
+                '❌ Nenhum player encontrado no metter.',
+
+            ephemeral: true
+        });
+    }
+
+    const paginaPlayers =
+        players.slice(0, 5);
+
+    const {
+
+        embed,
+        rows
+
+    } = criarPaginaClasses({
+
+        players:
+            paginaPlayers,
+
+        pagina: 1,
+
+        totalPaginas:
+            Math.ceil(
+                players.length / 5
+            )
+    });
+
+    return interaction.reply({
+
+        embeds: [embed],
+
+        components: rows,
+
+        ephemeral: true
+    });
+}
+
 module.exports = {
 
     executarRegistroDG,
-    processarModalDG
+    processarModalDG,
+    abrirModalMetter,
+    processarMetter
 };
