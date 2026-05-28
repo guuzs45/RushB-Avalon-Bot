@@ -19,8 +19,29 @@ const {
 );
 
 function criarEmbedSelecaoClasses(
-    players
+    players,
+    page = 0
 ) {
+
+    const playersPerPage = 4;
+
+    const start =
+        page * playersPerPage;
+
+    const end =
+        start + playersPerPage;
+
+    const paginaPlayers =
+        players.slice(
+            start,
+            end
+        );
+
+    const totalPages =
+        Math.ceil(
+            players.length /
+            playersPerPage
+        );
 
     const embed =
         new EmbedBuilder()
@@ -34,13 +55,14 @@ function criarEmbedSelecaoClasses(
             )
 
             .setDescription(
-                'Selecione a classe de cada player.'
+
+                `Selecione a classe de cada player.\n\nPágina ${page + 1}/${totalPages}`
             );
 
     const rows = [];
 
     for (
-        const player of players
+        const player of paginaPlayers
     ) {
 
         const menu =
@@ -84,28 +106,79 @@ function criarEmbedSelecaoClasses(
         );
     }
 
-    const finalizarButton =
-        new ActionRowBuilder()
+    const navButtons =
+        new ActionRowBuilder();
 
-            .addComponents(
+    if (
+        page > 0
+    ) {
 
-                new ButtonBuilder()
+        navButtons.addComponents(
 
-                    .setCustomId(
-                        'finalizar_dg'
-                    )
+            new ButtonBuilder()
 
-                    .setLabel(
-                        'Finalizar DG'
-                    )
+                .setCustomId(
+                    `classe_prev_${page}`
+                )
 
-                    .setStyle(
-                        ButtonStyle.Success
-                    )
-            );
+                .setLabel(
+                    '⬅️ Voltar'
+                )
+
+                .setStyle(
+                    ButtonStyle.Secondary
+                )
+        );
+    }
+
+    if (
+        page <
+        totalPages - 1
+    ) {
+
+        navButtons.addComponents(
+
+            new ButtonBuilder()
+
+                .setCustomId(
+                    `classe_next_${page}`
+                )
+
+                .setLabel(
+                    '➡️ Próxima'
+                )
+
+                .setStyle(
+                    ButtonStyle.Primary
+                )
+        );
+    }
+
+    if (
+        page ===
+        totalPages - 1
+    ) {
+
+        navButtons.addComponents(
+
+            new ButtonBuilder()
+
+                .setCustomId(
+                    'finalizar_dg'
+                )
+
+                .setLabel(
+                    '✅ Finalizar DG'
+                )
+
+                .setStyle(
+                    ButtonStyle.Success
+                )
+        );
+    }
 
     rows.push(
-        finalizarButton
+        navButtons
     );
 
     return {
