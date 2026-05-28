@@ -13,7 +13,7 @@ function parseMetter(
 
         const match =
             linha.match(
-                /\d+\.\s(.+?):\s([\d]+).*?\|([\d,.]+)\sDPS/i
+                /\d+\.\s(.+?):\s([\d]+).*?([\d,.]+)\sDPS/i
             );
 
         if (!match)
