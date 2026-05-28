@@ -314,10 +314,6 @@ async function processarMetter(
         players
     );
 
-    // LIMITE DISCORD
-    const paginaPlayers =
-        players.slice(0, 4);
-
     const {
 
         embed,
@@ -325,7 +321,10 @@ async function processarMetter(
 
     } =
         criarEmbedSelecaoClasses(
-            paginaPlayers
+
+            players,
+
+            0
         );
 
     return interaction.reply({
