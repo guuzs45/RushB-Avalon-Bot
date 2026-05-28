@@ -51,22 +51,37 @@ async function extrairParticipantesRH(
             continue;
 
         const matches =
-            field.value.matchAll(
-                /@([^\s]+)/g
+    field.value.matchAll(
+        /<@!?(\d+)>/g
+    );
+
+for (
+    const match of matches
+) {
+
+    const userId =
+        match[1];
+
+    try {
+
+        const member =
+            await mensagem.guild.members.fetch(
+                userId
             );
 
-        for (
-            const match of matches
-        ) {
+        const nickname =
+            (
+                member.nickname ||
+                member.user.username
+            )
+                .toLowerCase();
 
-            const nickname =
-                match[1]
-                    .toLowerCase();
+        participantes[
+            nickname
+        ] = classeKey;
 
-            participantes[
-                nickname
-            ] = classeKey;
-        }
+    } catch {}
+}
     }
 
     return participantes;
