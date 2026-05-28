@@ -230,115 +230,6 @@ async function buscarRankingPlayer(
     );
 }
 
-async function buscarEventoRaidHelper(
-    data,
-    horario
-) {
-
-    const canais = [
-
-        client.channels.cache.get(
-            RAID_ACTIVE_CHANNEL_ID
-        ),
-
-        client.channels.cache.get(
-            RAID_ARCHIVE_CHANNEL_ID
-        )
-    ];
-
-    const alvo =
-        `${data} ${horario}`;
-
-    let melhorEvento = null;
-
-    for (const canal of canais) {
-
-        if (!canal)
-            continue;
-
-        const mensagens =
-            await canal.messages.fetch({
-                limit: 50
-            });
-
-        for (
-            const mensagem of mensagens.values()
-        ) {
-
-            if (
-                mensagem.author.id !==
-                RAID_HELPER_ID
-            ) continue;
-
-            const embed =
-                mensagem.embeds[0];
-
-            if (!embed)
-                continue;
-
-            const conteudo =
-[
-    embed.title || '',
-    embed.description || '',
-    ...(embed.fields || []).map(
-        f => f.value || ''
-    )
-].join('\n');
-
-            const match =
-                conteudo.match(
-                    /<t:(\d+):d>[\s\S]*?<t:\d+:t>/
-                );
-
-            if (!match)
-                continue;
-
-            const timestamp =
-                Number(match[1]) * 1000;
-
-            const dataEvento =
-                new Date(timestamp);
-
-            const dataFormatada =
-                dataEvento
-                    .toLocaleDateString(
-                        'pt-BR',
-                        {
-                            timeZone:
-                                'America/Sao_Paulo'
-                        }
-                    );
-
-            const horaFormatada =
-                dataEvento
-                    .toLocaleTimeString(
-                        'pt-BR',
-                        {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            timeZone:
-                                'America/Sao_Paulo'
-                        }
-                    );
-
-            const comparacao =
-                `${dataFormatada} ${horaFormatada}`;
-
-            if (
-                comparacao === alvo
-            ) {
-
-                melhorEvento =
-                    mensagem;
-
-                break;
-            }
-        }
-    }
-
-    return melhorEvento;
-}
-
 async function extrairParticipantesRH(
     mensagem
 ) {
@@ -916,17 +807,44 @@ client.on(
                     );
 
                 const qtd =
-                    Number(
-                        interaction.fields.getTextInputValue(
-                            'qtd'
-                        )
-                    );
-
-                const evento =
-    await buscarEventoRaidHelper(
-        data,
-        horario
+    Number(
+        interaction.fields.getTextInputValue(
+            'qtd'
+        )
     );
+
+const mensagemId =
+    interaction.fields.getTextInputValue(
+        'mensagem_id'
+    );
+
+                let evento = null;
+
+const canais = [
+
+    client.channels.cache.get(
+        RAID_ACTIVE_CHANNEL_ID
+    ),
+
+    client.channels.cache.get(
+        RAID_ARCHIVE_CHANNEL_ID
+    )
+];
+
+for (const canal of canais) {
+
+    try {
+
+        evento =
+            await canal.messages.fetch(
+                mensagemId
+            );
+
+        if (evento)
+            break;
+
+    } catch {}
+}
 
 if (!evento) {
 
@@ -1051,20 +969,45 @@ Agora envie os metters.`,
                     )
                     .setRequired(true);
 
+            const mensagemIdInput =
+    new TextInputBuilder()
+        .setCustomId(
+            'mensagem_id'
+        )
+        .setLabel(
+            'ID da mensagem do Raid Helper'
+        )
+        .setStyle(
+            TextInputStyle.Short
+        )
+        .setPlaceholder(
+            '150999999999999999'
+        )
+        .setRequired(true);
+
             modal.addComponents(
-                new ActionRowBuilder()
-                    .addComponents(
-                        dataInput
-                    ),
-                new ActionRowBuilder()
-                    .addComponents(
-                        horarioInput
-                    ),
-                new ActionRowBuilder()
-                    .addComponents(
-                        qtdInput
-                    )
-            );
+
+    new ActionRowBuilder()
+        .addComponents(
+            dataInput
+        ),
+
+    new ActionRowBuilder()
+        .addComponents(
+            horarioInput
+        ),
+
+    new ActionRowBuilder()
+        .addComponents(
+            qtdInput
+        ),
+
+    new ActionRowBuilder()
+        .addComponents(
+            mensagemIdInput
+        )
+
+);
 
             return interaction.showModal(
                 modal
