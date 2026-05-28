@@ -1,10 +1,65 @@
-async function atualizarRankingPlayer({
+const {
 
-    rankingSheet,
+    GoogleSpreadsheet
+
+} = require(
+    'google-spreadsheet'
+);
+
+const {
+
+    JWT
+
+} = require(
+    'google-auth-library'
+);
+
+const serviceAccount =
+    JSON.parse(
+        process.env.GOOGLE_SERVICE_ACCOUNT
+    );
+
+const auth =
+    new JWT({
+
+        email:
+            serviceAccount.client_email,
+
+        key:
+            serviceAccount.private_key,
+
+        scopes: [
+
+            'https://www.googleapis.com/auth/spreadsheets'
+        ]
+    });
+
+const doc =
+    new GoogleSpreadsheet(
+
+        process.env.SHEET_ID,
+        auth
+    );
+
+let rankingSheet;
+
+async function iniciarRankingSheet() {
+
+    await doc.loadInfo();
+
+    rankingSheet =
+        doc.sheetsByTitle[
+            'RankingDG'
+        ];
+}
+
+async function salvarPlayer({
+
     nickname,
     classe,
-    damage,
-    dps
+    dano,
+    dps,
+    qtdDG
 
 }) {
 
@@ -13,10 +68,12 @@ async function atualizarRankingPlayer({
 
     let row =
         rows.find(
+
             r =>
-                r.get('nickname')
-                    ?.toLowerCase() ===
-                nickname.toLowerCase()
+
+                r.get(
+                    'nickname'
+                ) === nickname
         );
 
     if (!row) {
@@ -25,89 +82,123 @@ async function atualizarRankingPlayer({
 
             nickname,
 
-            totalDGs: 1,
+            totalDG:
+                qtdDG,
 
-            maxDamage: damage,
+            classe,
 
-            maxDps: dps,
+            maxDano:
+                dano,
 
-            classesData:
-                JSON.stringify({
-                    [classe]: 1
-                }),
-
-            updatedAt:
-                Date.now()
+            maxDps:
+                dps
         });
 
         return;
     }
 
-    const totalDGs =
+    const totalDG =
         Number(
-            row.get('totalDGs') || 0
-        ) + 1;
+            row.get(
+                'totalDG'
+            ) || 0
+        );
 
-    const maxDamage =
-        Math.max(
-            Number(
-                row.get('maxDamage') || 0
-            ),
-            Number(damage)
+    const maxDano =
+        Number(
+            row.get(
+                'maxDano'
+            ) || 0
         );
 
     const maxDps =
-        Math.max(
-            Number(
-                row.get('maxDps') || 0
-            ),
-            Number(dps)
+        Number(
+            row.get(
+                'maxDps'
+            ) || 0
         );
 
-    let classesData = {};
-
-    try {
-
-        classesData =
-            JSON.parse(
-                row.get('classesData') || '{}'
-            );
-
-    } catch {}
-
-    classesData[classe] =
-        (classesData[classe] || 0) + 1;
-
     row.set(
-        'totalDGs',
-        totalDGs
+        'totalDG',
+        totalDG + qtdDG
     );
 
     row.set(
-        'maxDamage',
-        maxDamage
+        'classe',
+        classe
     );
 
     row.set(
-        'maxDps',
-        maxDps
-    );
-
-    row.set(
-        'classesData',
-        JSON.stringify(
-            classesData
+        'maxDano',
+        Math.max(
+            maxDano,
+            dano
         )
     );
 
     row.set(
-        'updatedAt',
-        Date.now()
+        'maxDps',
+        Math.max(
+            maxDps,
+            dps
+        )
     );
 
     await row.save();
 }
 
+async function buscarRanking() {
+
+    const rows =
+        await rankingSheet.getRows();
+
+    return rows
+        .map(
+            row => ({
+
+                nickname:
+                    row.get(
+                        'nickname'
+                    ),
+
+                totalDG:
+                    Number(
+                        row.get(
+                            'totalDG'
+                        ) || 0
+                    ),
+
+                classe:
+                    row.get(
+                        'classe'
+                    ),
+
+                maxDano:
+                    Number(
+                        row.get(
+                            'maxDano'
+                        ) || 0
+                    ),
+
+                maxDps:
+                    Number(
+                        row.get(
+                            'maxDps'
+                        ) || 0
+                    )
+            })
+        )
+
+        .sort(
+            (a, b) =>
+                b.totalDG -
+                a.totalDG
+        );
+}
+
 module.exports = {
-    atualizarRankingPlayer
+
+    iniciarRankingSheet,
+    salvarPlayer,
+    buscarRanking
 };

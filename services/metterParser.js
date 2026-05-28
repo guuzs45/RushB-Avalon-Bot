@@ -3,12 +3,7 @@ function parseMetter(
 ) {
 
     const linhas =
-        texto
-            .split('\n')
-            .map(
-                l => l.trim()
-            )
-            .filter(Boolean);
+        texto.split('\n');
 
     const players = [];
 
@@ -18,29 +13,38 @@ function parseMetter(
 
         const match =
             linha.match(
-                /^\d+\.\s(.+?):\s([\d.,KMB]+)\(([\d.,]+)%\)\|([\d.,]+)\sDPS$/i
+                /\d+\.\s(.+?):\s([\d]+).*?\|([\d,.]+)\sDPS/i
             );
 
         if (!match)
             continue;
 
         const nickname =
-            match[1].trim();
+            match[1]
+                .trim();
 
-        const damage =
-            match[2];
-
-        const percent =
-            match[3];
+        const dano =
+            Number(
+                match[2]
+                    .replaceAll(
+                        '.',
+                        ''
+                    )
+            );
 
         const dps =
-            match[4];
+            Number(
+                match[3]
+                    .replace(
+                        ',',
+                        '.'
+                    )
+            );
 
         players.push({
 
             nickname,
-            damage,
-            percent,
+            dano,
             dps
         });
     }

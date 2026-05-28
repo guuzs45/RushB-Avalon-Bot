@@ -53,6 +53,14 @@ const {
     './services/classHandler'
 );
 
+const {
+
+    finalizarDG
+
+} = require(
+    './services/finalizarDG'
+);
+
 const serviceAccount =
     JSON.parse(
         process.env.GOOGLE_SERVICE_ACCOUNT
@@ -227,8 +235,8 @@ async function updateActivity(
         ) {
 
             console.log(
-    `🚫 ${member.user.tag} já recebeu ponto de call hoje.`
-);
+                `🚫 ${member.user.tag} já recebeu ponto de call hoje.`
+            );
 
             return;
         }
@@ -619,22 +627,23 @@ client.on(
     async interaction => {
 
         // SELECT MENU
-if (
-    interaction.isStringSelectMenu()
-) {
+        if (
+            interaction.isStringSelectMenu()
+        ) {
 
-    if (
-        interaction.customId.startsWith(
-            'classe_'
-        )
-    ) {
+            if (
+                interaction.customId.startsWith(
+                    'classe_'
+                )
+            ) {
 
-        return processarClasseSelecionada(
-            interaction
-        );
-    }
-}
-        // BOTÃO
+                return processarClasseSelecionada(
+                    interaction
+                );
+            }
+        }
+
+        // BOTÕES
         if (
             interaction.isButton()
         ) {
@@ -646,6 +655,17 @@ if (
             ) {
 
                 return abrirModalMetter(
+                    interaction
+                );
+            }
+
+            if (
+
+                interaction.customId ===
+                'finalizar_dg'
+            ) {
+
+                return finalizarDG(
                     interaction
                 );
             }

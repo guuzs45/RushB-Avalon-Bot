@@ -98,10 +98,43 @@ function criarPaginaClasses({
         }
     );
 
-    return {
-        embed,
-        rows
-    };
+    const {
+
+    ButtonBuilder,
+    ButtonStyle
+
+} = require(
+    'discord.js'
+);
+
+const finalizarButton =
+    new ActionRowBuilder()
+
+        .addComponents(
+
+            new ButtonBuilder()
+
+                .setCustomId(
+                    'finalizar_dg'
+                )
+
+                .setLabel(
+                    'Finalizar DG'
+                )
+
+                .setStyle(
+                    ButtonStyle.Success
+                )
+        );
+
+rows.push(
+    finalizarButton
+);
+
+return {
+    embed,
+    rows
+};
 }
 
 module.exports = {

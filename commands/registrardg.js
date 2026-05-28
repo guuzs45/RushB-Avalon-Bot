@@ -302,6 +302,16 @@ async function processarMetter(
         });
     }
 
+const metterSessions =
+    require(
+        '../data/metterSessions'
+    );
+
+metterSessions.set(
+    interaction.user.id,
+    players
+);
+
     const paginaPlayers =
         players.slice(0, 5);
 
