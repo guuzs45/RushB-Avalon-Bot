@@ -43,7 +43,7 @@ function nomeClasse(
 
     return CLASS_MAPPINGS[
         classe
-    ]?.label || classe;
+    ]?.nome || classe;
 }
 
 function formatarNumero(

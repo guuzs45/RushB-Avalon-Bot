@@ -54,7 +54,7 @@ function obterClasse(
 
         emoji: '⚔️',
 
-        label:
+        nome:
             classe || 'Desconhecida'
     };
 }
@@ -96,7 +96,7 @@ function criarSecaoClasse(
 
     return [
 
-        `## ${dadosClasse.emoji} ${dadosClasse.label}`,
+        `## ${dadosClasse.emoji} ${dadosClasse.nome}`,
 
         '',
 
