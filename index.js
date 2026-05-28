@@ -1,4 +1,3 @@
-```javascript
 require('dotenv').config();
 
 const {
@@ -1213,4 +1212,3 @@ cron.schedule(
 client.login(
     process.env.TOKEN
 );
-```
