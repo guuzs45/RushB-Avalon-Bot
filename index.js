@@ -45,6 +45,14 @@ const {
     './commands/registrardg'
 );
 
+const {
+
+    processarClasseSelecionada
+
+} = require(
+    './services/classHandler'
+);
+
 const serviceAccount =
     JSON.parse(
         process.env.GOOGLE_SERVICE_ACCOUNT
@@ -610,6 +618,22 @@ client.on(
 
     async interaction => {
 
+        // SELECT MENU
+if (
+    interaction.isStringSelectMenu()
+) {
+
+    if (
+        interaction.customId.startsWith(
+            'classe_'
+        )
+    ) {
+
+        return processarClasseSelecionada(
+            interaction
+        );
+    }
+}
         // BOTÃO
         if (
             interaction.isButton()

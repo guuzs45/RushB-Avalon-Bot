@@ -22,8 +22,8 @@ function criarSelectClasse(
     return new StringSelectMenuBuilder()
 
         .setCustomId(
-            `classe_${index}`
-        )
+    `classe_${player.nickname}`
+)
 
         .setPlaceholder(
             `Classe de ${player}`
