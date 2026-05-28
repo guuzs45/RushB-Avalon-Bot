@@ -44,19 +44,30 @@ function formatarDps(
     );
 }
 
+function obterClasse(
+    classe
+) {
+
+    return CLASS_MAPPINGS[
+        classe
+    ] || {
+
+        emoji: '⚔️',
+
+        label:
+            classe || 'Desconhecida'
+    };
+}
+
 function criarSecaoClasse(
     classe,
     players
 ) {
 
     const dadosClasse =
-        CLASS_MAPPINGS[
+        obterClasse(
             classe
-        ];
-
-    if (
-        !dadosClasse
-    ) return '';
+        );
 
     const top3 =
         players
@@ -68,6 +79,13 @@ function criarSecaoClasse(
             )
 
             .slice(0, 3);
+
+    if (
+        top3.length === 0
+    ) {
+
+        return '';
+    }
 
     const medals = [
 
@@ -129,7 +147,7 @@ async function atualizarRankingClasses(
 
     const secoes =
         Object.keys(
-            CLASS_MAPPINGS
+            agrupado
         )
 
         .map(
@@ -142,7 +160,7 @@ async function atualizarRankingClasses(
 
                     agrupado[
                         classe
-                    ] || []
+                    ]
                 )
         )
 
@@ -164,9 +182,16 @@ async function atualizarRankingClasses(
             )
 
             .setDescription(
+
                 secoes ||
                 'Sem dados.'
             )
+
+            .setFooter({
+
+                text:
+                    'Sistema Avalon DG'
+            })
 
             .setTimestamp();
 
