@@ -220,9 +220,8 @@ async function updateActivity(
         ) {
 
             console.log(
-
-                `⛔ ${member.user.tag} já recebeu ponto de call hoje.`
-            );
+    `🚫 ${member.user.tag} já recebeu ponto de call hoje.`
+);
 
             return;
         }
