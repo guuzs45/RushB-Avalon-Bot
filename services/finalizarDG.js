@@ -37,111 +37,168 @@ const {
     './classRankingEmbedManager'
 );
 
+// LOCK DE FINALIZAÇÃO
+const finalizandoDG =
+    new Set();
+
 async function finalizarDG(
     interaction
 ) {
 
-    await interaction.deferReply({
-
-        ephemeral: true
-    });
-
     const userId =
         interaction.user.id;
 
-    const classes =
-        classSelections.get(
-            userId
-        );
-
-    const players =
-        metterSessions.get(
-            userId
-        );
-
-    const dgInfo =
-        dgSessions.get(
-            userId
-        );
-
+    // EVITA DUPLO CLIQUE
     if (
-        !classes ||
-        !players ||
-        !dgInfo
+        finalizandoDG.has(
+            userId
+        )
     ) {
 
-        return interaction.editReply({
+        return interaction.reply({
 
             content:
-                '❌ Dados da DG não encontrados.'
+                '⚠️ Esta DG já está sendo finalizada.',
+
+            ephemeral: true
         });
     }
 
-    for (
-        const player of players
-    ) {
+    finalizandoDG.add(
+        userId
+    );
 
-        const classe =
-            classes[
-                player.nickname
-            ];
+    try {
 
-        if (!classe)
-            continue;
+        await interaction.deferUpdate();
 
-        await salvarPlayer({
+        const classes =
+            classSelections.get(
+                userId
+            );
 
-            nickname:
-                player.nickname,
+        const players =
+            metterSessions.get(
+                userId
+            );
 
-            classe,
+        const dgInfo =
+            dgSessions.get(
+                userId
+            );
 
-            dano:
-                player.dano,
+        if (
+            !classes ||
+            !players ||
+            !dgInfo
+        ) {
 
-            dps:
-                player.dps,
+            finalizandoDG.delete(
+                userId
+            );
 
-            qtdDG:
-                dgInfo.qtd
+            return interaction.followUp({
+
+                content:
+                    '❌ Dados da DG não encontrados.',
+
+                ephemeral: true
+            });
+        }
+
+        // REMOVE SESSÕES IMEDIATAMENTE
+        classSelections.delete(
+            userId
+        );
+
+        metterSessions.delete(
+            userId
+        );
+
+        dgSessions.delete(
+            userId
+        );
+
+        // DESATIVA BOTÕES
+        await interaction.editReply({
+
+            components: []
         });
+
+        for (
+            const player of players
+        ) {
+
+            const classe =
+                classes[
+                    player.nickname
+                ];
+
+            if (!classe)
+                continue;
+
+            await salvarPlayer({
+
+                nickname:
+                    player.nickname,
+
+                classe,
+
+                dano:
+                    player.dano,
+
+                dps:
+                    player.dps,
+
+                qtdDG:
+                    dgInfo.qtd
+            });
+        }
+
+        await atualizarRankingEmbed(
+
+            interaction.client,
+
+            process.env
+                .RANKING_GERAL_CHANNEL_ID,
+
+            0
+        );
+
+        await atualizarRankingClasses(
+
+            interaction.client,
+
+            process.env
+                .RANKING_CLASSES_CHANNEL_ID
+        );
+
+        return interaction.followUp({
+
+            content:
+                '✅ DG finalizada com sucesso.',
+
+            ephemeral: true
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        return interaction.followUp({
+
+            content:
+                '❌ Erro ao finalizar DG.',
+
+            ephemeral: true
+        });
+
+    } finally {
+
+        finalizandoDG.delete(
+            userId
+        );
     }
-
-    await atualizarRankingEmbed(
-
-        interaction.client,
-
-        process.env
-            .RANKING_GERAL_CHANNEL_ID,
-
-        0
-    );
-
-    await atualizarRankingClasses(
-
-        interaction.client,
-
-        process.env
-            .RANKING_CLASSES_CHANNEL_ID
-    );
-
-    classSelections.delete(
-        userId
-    );
-
-    metterSessions.delete(
-        userId
-    );
-
-    dgSessions.delete(
-        userId
-    );
-
-    return interaction.editReply({
-
-        content:
-            '✅ DG finalizada com sucesso.'
-    });
 }
 
 module.exports = {
