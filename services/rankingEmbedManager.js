@@ -199,29 +199,17 @@ async function atualizarRankingEmbed(
                 '🏆 Ranking DG Avalon'
             )
 
-            .setDescription(
+            .addFields(
 
-[
-    ...criarTop3Fields(
-        ranking
-    ).map(
-
-        field =>
-
-`${field.name}
-${field.value}`
-    ),
-
-    '\n──────────────'
-]
-
-.join('\n\n')
-)
+                ...criarTop3Fields(
+                    ranking
+                )
+            )
 
             .addFields({
 
                 name:
-                    '\u200B',
+                    '──────────────',
 
                 value:
                     criarLista(
