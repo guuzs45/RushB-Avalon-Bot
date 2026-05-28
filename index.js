@@ -78,6 +78,12 @@ const DG_STAFF_ROLES = [
 const RAID_HELPER_ID =
     '579155972115660803';
 
+const RAID_ACTIVE_CHANNEL_ID =
+    '1504506064178118885';
+
+const RAID_ARCHIVE_CHANNEL_ID =
+    '1504506985922695338';
+
 const ABSENCE_EMOJI_ID =
     '612343589070045200';
 
@@ -89,6 +95,59 @@ const IGNORED_VOICE_CHANNEL =
 
 const DEPLOY_DATE =
     new Date('2026-05-25T00:00:00');
+
+const CLASS_MAPPINGS = {
+
+    Main_Tank: {
+        emoji: '👑',
+        label: 'Caller'
+    },
+
+    Off_Tank: {
+        emoji: '🛡️',
+        label: 'Off Tank'
+    },
+
+    Arcano_Elevado: {
+        emoji: '⏳',
+        label: 'Arcano Elevado'
+    },
+
+    Arcano_Silence: {
+        emoji: '🔮',
+        label: 'Arcano Silence'
+    },
+
+    Main_Healer: {
+        emoji: '💚',
+        label: 'Main Healer'
+    },
+
+    Bruxo: {
+        emoji: '☠️',
+        label: 'Bruxo'
+    },
+
+    Foice_de_Cristal: {
+        emoji: '⚔️',
+        label: 'Foice de Cristal'
+    },
+
+    Repetidor: {
+        emoji: '🏹',
+        label: 'Repetidor'
+    },
+
+    Scout: {
+        emoji: '👀',
+        label: 'Scout'
+    },
+
+    Cobra: {
+        emoji: '🐍',
+        label: 'Cobra'
+    }
+};
 
 const voiceSessions =
     new Map();
@@ -169,6 +228,108 @@ async function buscarRankingPlayer(
                 ?.toLowerCase() ===
             nickname.toLowerCase()
     );
+}
+
+async function buscarEventoRaidHelper(
+    data,
+    horario
+) {
+
+    const canais = [
+
+        client.channels.cache.get(
+            RAID_ACTIVE_CHANNEL_ID
+        ),
+
+        client.channels.cache.get(
+            RAID_ARCHIVE_CHANNEL_ID
+        )
+    ];
+
+    for (const canal of canais) {
+
+        if (!canal)
+            continue;
+
+        const mensagens =
+            await canal.messages.fetch({
+                limit: 100
+            });
+
+        for (
+            const mensagem of mensagens.values()
+        ) {
+
+            if (
+                mensagem.author.id !==
+                RAID_HELPER_ID
+            ) continue;
+
+            const conteudo =
+                [
+                    mensagem.content,
+                    ...mensagem.embeds.map(
+                        e =>
+                            `${e.title || ''}\n${e.description || ''}`
+                    )
+                ].join('\n');
+
+            if (
+                conteudo.includes(data) &&
+                conteudo.includes(horario)
+            ) {
+
+                return mensagem;
+            }
+        }
+    }
+
+    return null;
+}
+
+async function extrairParticipantesRH(
+    mensagem
+) {
+
+    const participantes = {};
+
+    for (
+        const reaction of
+        mensagem.reactions.cache.values()
+    ) {
+
+        const emojiName =
+            reaction.emoji.name;
+
+        if (
+            !CLASS_MAPPINGS[
+                emojiName
+            ]
+        ) continue;
+
+        const usuarios =
+            await reaction.users.fetch();
+
+        for (
+            const user of usuarios.values()
+        ) {
+
+            if (user.bot)
+                continue;
+
+            const member =
+                await mensagem.guild.members.fetch(
+                    user.id
+                );
+
+            participantes[
+                member.displayName
+                    .toLowerCase()
+            ] = emojiName;
+        }
+    }
+
+    return participantes;
 }
 
 async function updateActivity(
@@ -709,26 +870,49 @@ client.on(
                         )
                     );
 
-                dgSessions.set(
-                    interaction.user.id,
-                    {
-                        data,
-                        horario,
-                        restante: qtd
-                    }
-                );
+                const evento =
+    await buscarEventoRaidHelper(
+        data,
+        horario
+    );
 
-                return interaction.reply({
-                    content:
+if (!evento) {
+
+    return interaction.reply({
+        content:
+            '❌ Evento do Raid Helper não encontrado.',
+        ephemeral: true
+    });
+}
+
+const participantes =
+    await extrairParticipantesRH(
+        evento
+    );
+
+dgSessions.set(
+    interaction.user.id,
+    {
+        data,
+        horario,
+        restante: qtd,
+        participantes
+    }
+);
+
+return interaction.reply({
+    content:
 `✅ DG registrada.
 
 📅 ${data}
 🕒 ${horario}
 🏰 ${qtd} DG(s)
 
+👥 ${Object.keys(participantes).length} participantes encontrados no Raid Helper.
+
 Agora envie os metters.`,
-                    ephemeral: true
-                });
+    ephemeral: true
+});
             }
         }
 
