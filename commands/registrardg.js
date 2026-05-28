@@ -29,6 +29,11 @@ const metterSessions =
         '../data/metterSessions'
     );
 
+const classSelections =
+    require(
+        '../data/classSelections'
+    );
+
 const {
 
     parseMetter
@@ -411,7 +416,7 @@ Clique abaixo para enviar o próximo metter.`,
         });
     }
 
-    // REMOVE DUPLICADOS PARA SELEÇÃO
+    // REMOVE DUPLICADOS
     const unicos =
         [];
 
@@ -437,6 +442,22 @@ Clique abaixo para enviar o próximo metter.`,
         );
     }
 
+    // REMOVE PLAYERS JÁ CLASSIFICADOS
+    const classesExistentes =
+        classSelections.get(
+            interaction.user.id
+        ) || {};
+
+    const playersParaSelecionar =
+        unicos.filter(
+
+            player =>
+
+                !classesExistentes[
+                    player.nickname
+                ]
+        );
+
     const {
 
         embed,
@@ -445,7 +466,7 @@ Clique abaixo para enviar o próximo metter.`,
     } =
         criarEmbedSelecaoClasses(
 
-            unicos,
+            playersParaSelecionar,
 
             0
         );
