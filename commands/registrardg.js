@@ -24,6 +24,11 @@ const dgSessions =
         '../data/dgSessions'
     );
 
+const metterSessions =
+    require(
+        '../data/metterSessions'
+    );
+
 const {
 
     parseMetter
@@ -34,7 +39,7 @@ const {
 
 const {
 
-    criarPaginaClasses
+    criarEmbedSelecaoClasses
 
 } = require(
     '../utils/embeds'
@@ -289,6 +294,8 @@ async function processarMetter(
             texto
         );
 
+    console.log(players);
+
     if (
         players.length === 0
     ) {
@@ -302,36 +309,20 @@ async function processarMetter(
         });
     }
 
-const metterSessions =
-    require(
-        '../data/metterSessions'
+    metterSessions.set(
+        interaction.user.id,
+        players
     );
-
-metterSessions.set(
-    interaction.user.id,
-    players
-);
-
-    const paginaPlayers =
-        players.slice(0, 5);
 
     const {
 
         embed,
         rows
 
-    } = criarPaginaClasses({
-
-        players:
-            paginaPlayers,
-
-        pagina: 1,
-
-        totalPaginas:
-            Math.ceil(
-                players.length / 5
-            )
-    });
+    } =
+        criarEmbedSelecaoClasses(
+            players
+        );
 
     return interaction.reply({
 
