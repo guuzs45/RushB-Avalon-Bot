@@ -685,45 +685,133 @@ client.on(
             }
         }
 
-        // BOTÕES
-        if (
-            interaction.isButton()
-        ) {
-
+// BOTÕES
 if (
-
-    interaction.customId.startsWith(
-        'rank_'
-    )
+    interaction.isButton()
 ) {
 
-    return processarRankingButtons(
-        interaction
-    );
-}
+    // PAGINAÇÃO RANKING
+    if (
 
-            if (
+        interaction.customId.startsWith(
+            'rank_'
+        )
+    ) {
 
-                interaction.customId ===
-                'enviar_metter'
-            ) {
+        return processarRankingButtons(
+            interaction
+        );
+    }
 
-                return abrirModalMetter(
-                    interaction
-                );
-            }
+    // PAGINAÇÃO CLASSES
+    if (
 
-            if (
+        interaction.customId.startsWith(
+            'classe_next_'
+        ) ||
 
-                interaction.customId ===
-                'finalizar_dg'
-            ) {
+        interaction.customId.startsWith(
+            'classe_prev_'
+        )
+    ) {
 
-                return finalizarDG(
-                    interaction
-                );
-            }
+        const metterSessions =
+            require(
+                './data/metterSessions'
+            );
+
+        const {
+
+            criarEmbedSelecaoClasses
+
+        } = require(
+            './utils/embeds'
+        );
+
+        const players =
+            metterSessions.get(
+                interaction.user.id
+            );
+
+        if (!players) {
+
+            return interaction.reply({
+
+                content:
+                    '❌ Sessão expirada.',
+
+                ephemeral: true
+            });
         }
+
+        let page =
+            Number(
+
+                interaction.customId
+                    .split('_')
+                    .pop()
+            );
+
+        if (
+
+            interaction.customId.startsWith(
+                'classe_next_'
+            )
+        ) {
+
+            page++;
+        }
+
+        else {
+
+            page--;
+        }
+
+        const {
+
+            embed,
+            rows
+
+        } =
+            criarEmbedSelecaoClasses(
+
+                players,
+
+                page
+            );
+
+        return interaction.update({
+
+            embeds: [embed],
+
+            components: rows
+        });
+    }
+
+    // ENVIAR METTER
+    if (
+
+        interaction.customId ===
+        'enviar_metter'
+    ) {
+
+        return abrirModalMetter(
+            interaction
+        );
+    }
+
+    // FINALIZAR DG
+    if (
+
+        interaction.customId ===
+        'finalizar_dg'
+    ) {
+
+        return finalizarDG(
+            interaction
+        );
+    }
+}
 
         // MODAIS
         if (
