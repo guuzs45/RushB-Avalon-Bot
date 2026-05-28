@@ -43,7 +43,7 @@ function nomeClasse(
 
     return CLASS_MAPPINGS[
         classe
-    ]?.nome || 'Desconhecida';
+    ]?.label || 'Desconhecida';
 }
 
 function formatarNumero(
@@ -54,6 +54,15 @@ function formatarNumero(
         numero || 0
     ).toLocaleString(
         'pt-BR'
+    );
+}
+
+function formatarDps(
+    numero
+) {
+
+    return Math.floor(
+        Number(numero || 0)
     );
 }
 
@@ -95,14 +104,14 @@ function criarTop3(
 
                 `⚔️ Dano recorde: ${formatarMilhoes(player.maxDano)}`,
 
-                `🔥 DPS recorde: ${formatarNumero(player.maxDps)}`
+                `🔥 DPS recorde: ${formatarDps(player.maxDps)}`
             ]
 
             .join('\n');
 
         }
 
-    ).join('\n\n──────────────\n\n');
+    ).join('\n\n──────────────');
 }
 
 function criarLista(
@@ -143,7 +152,7 @@ function criarLista(
 
                 `\`${pos}.\` ${emojiClasse(player.classe)} **${player.nickname}**`,
 
-                `└ ${player.totalDG} DGs • ⚔️ ${formatarMilhoes(player.maxDano)} • 🔥 ${formatarNumero(player.maxDps)}`
+                `└ ${player.totalDG} DGs • ⚔️ ${formatarMilhoes(player.maxDano)} • 🔥 ${formatarDps(player.maxDps)}`
             ]
 
             .join('\n');
@@ -196,7 +205,7 @@ async function atualizarRankingEmbed(
                         ranking
                     ),
 
-                    '\n\n──────────────\n\n',
+                    '\n\n',
 
                     criarLista(
                         ranking,
