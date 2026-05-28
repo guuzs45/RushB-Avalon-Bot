@@ -34,6 +34,11 @@ async function finalizarDG(
     interaction
 ) {
 
+await interaction.deferReply({
+
+    ephemeral: true
+});
+
     const userId =
         interaction.user.id;
 
@@ -146,7 +151,7 @@ async function finalizarDG(
         userId
     );
 
-    return interaction.reply({
+    return interaction.editReply({
 
         content:
             '✅ DG finalizada com sucesso.',
