@@ -8,11 +8,7 @@ const {
     SlashCommandBuilder,
     Routes,
     REST,
-    EmbedBuilder,
-    ModalBuilder,
-    TextInputBuilder,
-    TextInputStyle,
-    ActionRowBuilder
+    EmbedBuilder
 } = require('discord.js');
 
 const {
@@ -26,6 +22,15 @@ const {
 const cron =
     require('node-cron');
 
+const {
+
+    executarRegistroDG,
+    processarModalDG
+
+} = require(
+    './commands/registrardg'
+);
+
 const serviceAccount =
     JSON.parse(
         process.env.GOOGLE_SERVICE_ACCOUNT
@@ -36,9 +41,7 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessageReactions,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.GuildMessageReactions
     ],
     partials: [
         Partials.Message,
@@ -69,20 +72,8 @@ const PROTECTED_ROLES = [
     '1504502396766650570'
 ];
 
-const DG_STAFF_ROLES = [
-    '1504600582198005940',
-    '1504501768011124917',
-    '1504502396766650570'
-];
-
 const RAID_HELPER_ID =
     '579155972115660803';
-
-const RAID_ACTIVE_CHANNEL_ID =
-    '1504506064178118885';
-
-const RAID_ARCHIVE_CHANNEL_ID =
-    '1504506985922695338';
 
 const ABSENCE_EMOJI_ID =
     '612343589070045200';
@@ -96,66 +87,10 @@ const IGNORED_VOICE_CHANNEL =
 const DEPLOY_DATE =
     new Date('2026-05-25T00:00:00');
 
-const CLASS_MAPPINGS = {
-
-    Main_Tank: {
-        emoji: '👑',
-        label: 'Caller'
-    },
-
-    Off_Tank: {
-        emoji: '🛡️',
-        label: 'Off Tank'
-    },
-
-    Arcano_Elevado: {
-        emoji: '⏳',
-        label: 'Arcano Elevado'
-    },
-
-    Arcano_Silence: {
-        emoji: '🔮',
-        label: 'Arcano Silence'
-    },
-
-    Main_Healer: {
-        emoji: '💚',
-        label: 'Main Healer'
-    },
-
-    Bruxo: {
-        emoji: '☠️',
-        label: 'Bruxo'
-    },
-
-    Foice_de_Cristal: {
-        emoji: '⚔️',
-        label: 'Foice de Cristal'
-    },
-
-    Repetidor: {
-        emoji: '🏹',
-        label: 'Repetidor'
-    },
-
-    Scout: {
-        emoji: '👀',
-        label: 'Scout'
-    },
-
-    Cobra: {
-        emoji: '🐍',
-        label: 'Cobra'
-    }
-};
-
 const voiceSessions =
     new Map();
 
 const raidParticipations =
-    new Map();
-
-const dgSessions =
     new Map();
 
 const serviceAccountAuth =
@@ -176,19 +111,12 @@ const doc =
     );
 
 let sheet;
-let rankingSheet;
 
 async function iniciarSheets() {
 
     await doc.loadInfo();
 
-    sheet =
-        doc.sheetsByIndex[0];
-
-    rankingSheet =
-        doc.sheetsByTitle[
-            'ranking_dg'
-        ];
+    sheet = doc.sheetsByIndex[0];
 
     console.log(
         '✅ Google Sheets conectado.'
@@ -215,70 +143,7 @@ async function buscarUsuario(userId) {
     );
 }
 
-async function buscarRankingPlayer(
-    nickname
-) {
-
-    const rows =
-        await rankingSheet.getRows();
-
-    return rows.find(
-        r =>
-            r.get('nickname')
-                ?.toLowerCase() ===
-            nickname.toLowerCase()
-    );
-}
-
-async function extrairParticipantesRH(
-    mensagem
-) {
-
-    const participantes = {};
-
-    for (
-        const reaction of
-        mensagem.reactions.cache.values()
-    ) {
-
-        const emojiName =
-            reaction.emoji.name;
-
-        if (
-            !CLASS_MAPPINGS[
-                emojiName
-            ]
-        ) continue;
-
-        const usuarios =
-            await reaction.users.fetch();
-
-        for (
-            const user of usuarios.values()
-        ) {
-
-            if (user.bot)
-                continue;
-
-            const member =
-                await mensagem.guild.members.fetch(
-                    user.id
-                );
-
-            participantes[
-                member.displayName
-                    .toLowerCase()
-            ] = emojiName;
-        }
-    }
-
-    return participantes;
-}
-
-async function updateActivity(
-    member,
-    type = 'general'
-) {
+async function updateActivity(member, type = 'general') {
 
     const row =
         await buscarUsuario(member.id);
@@ -297,6 +162,7 @@ async function updateActivity(
                 row.get('interactions') || 0
             );
 
+        // LIMITE DE 1 CALL POR DIA
         if (
             type === 'call' &&
             ultimaCall === hoje
@@ -362,183 +228,6 @@ async function updateActivity(
                 type === 'call'
                     ? hoje
                     : ''
-        });
-    }
-}
-
-async function atualizarRankingDG(
-    nome,
-    dano,
-    dps
-) {
-
-    let row =
-        await buscarRankingPlayer(
-            nome
-        );
-
-    if (row) {
-
-        const totalDGs =
-            Number(
-                row.get('totalDGs') || 0
-            ) + 1;
-
-        const maxDamage =
-            Math.max(
-                Number(
-                    row.get('maxDamage') || 0
-                ),
-                dano
-            );
-
-        const maxDps =
-            Math.max(
-                Number(
-                    row.get('maxDps') || 0
-                ),
-                dps
-            );
-
-        row.set(
-            'totalDGs',
-            totalDGs
-        );
-
-        row.set(
-            'maxDamage',
-            maxDamage
-        );
-
-        row.set(
-            'maxDps',
-            maxDps
-        );
-
-        row.set(
-            'updatedAt',
-            Date.now()
-        );
-
-        await row.save();
-
-    } else {
-
-        await rankingSheet.addRow({
-
-            userId: '',
-
-            nickname:
-                nome,
-
-            totalDGs:
-                1,
-
-            maxDamage:
-                dano,
-
-            maxDps:
-                dps,
-
-            classesData:
-                '{}',
-
-            updatedAt:
-                Date.now()
-        });
-    }
-}
-
-async function atualizarEmbedsRanking() {
-
-    const channel =
-        client.channels.cache.get(
-            process.env.RANKING_GERAL_CHANNEL_ID
-        );
-
-    if (!channel)
-        return;
-
-    const rows =
-        await rankingSheet.getRows();
-
-    const ranking =
-        rows.sort(
-            (a, b) =>
-                Number(
-                    b.get('totalDGs')
-                ) -
-                Number(
-                    a.get('totalDGs')
-                )
-        );
-
-    const top3 =
-        ranking.slice(0, 3);
-
-    const resto =
-        ranking.slice(3, 20);
-
-    const embed =
-        new EmbedBuilder()
-            .setColor('#f1c40f')
-            .setTitle(
-                '🏆 Ranking Geral DG'
-            )
-            .setDescription(
-                top3.map(
-                    (p, index) => {
-
-                        const medalhas = [
-                            '🥇',
-                            '🥈',
-                            '🥉'
-                        ];
-
-                        return `${medalhas[index]} **${p.get('nickname')}**
-🏰 ${p.get('totalDGs')} DGs
-⚡ ${p.get('maxDps')} DPS
-🔥 ${p.get('maxDamage')} dano`;
-                    }
-                ).join('\n\n')
-            )
-            .addFields({
-                name:
-                    '📋 Restante do Ranking',
-                value:
-                    resto.map(
-                        (p, index) =>
-`${index + 4}. ${p.get('nickname')} • ${p.get('totalDGs')} DGs`
-                    ).join('\n') ||
-                    'Nenhum'
-            })
-            .setFooter({
-                text:
-                    `Atualizado em ${new Date().toLocaleString('pt-BR')}`
-            });
-
-    const mensagens =
-        await channel.messages.fetch({
-            limit: 10
-        });
-
-    const antiga =
-        mensagens.find(
-            m =>
-                m.author.id ===
-                client.user.id
-        );
-
-    if (antiga) {
-
-        await antiga.edit({
-            embeds: [embed]
-        });
-
-    } else {
-
-        await channel.send({
-            embeds: [embed]
         });
     }
 }
@@ -609,11 +298,7 @@ async function executarLimpeza(guild) {
             );
 
         const ultima =
-            Number(
-                row?.get(
-                    'lastActivity'
-                )
-            ) ||
+            row?.get('lastActivity') ||
             member.joinedTimestamp ||
             Date.now();
 
@@ -737,25 +422,25 @@ client.once(
 
         const commands = [
 
-            new SlashCommandBuilder()
-                .setName('cleandc')
-                .setDescription(
-                    'Executa limpeza manual'
-                ),
+    new SlashCommandBuilder()
+        .setName('cleandc')
+        .setDescription(
+            'Executa limpeza manual'
+        ),
 
-            new SlashCommandBuilder()
-                .setName('atividade')
-                .setDescription(
-                    'Mostra relatório de atividade'
-                ),
+    new SlashCommandBuilder()
+        .setName('atividade')
+        .setDescription(
+            'Mostra relatório de atividade'
+        ),
 
-            new SlashCommandBuilder()
-                .setName('registrardg')
-                .setDescription(
-                    'Registra DG'
-                )
+    new SlashCommandBuilder()
+        .setName('registrardg')
+        .setDescription(
+            'Registrar DG'
+        )
 
-        ].map(
+].map(
             command =>
                 command.toJSON()
         );
@@ -787,6 +472,7 @@ client.on(
     'interactionCreate',
     async interaction => {
 
+        // MODAL DG
         if (
             interaction.isModalSubmit()
         ) {
@@ -796,224 +482,66 @@ client.on(
                 'registrar_dg_modal'
             ) {
 
-                const data =
-                    interaction.fields.getTextInputValue(
-                        'data'
-                    );
-
-                const horario =
-                    interaction.fields.getTextInputValue(
-                        'horario'
-                    );
-
-                const qtd =
-    Number(
-        interaction.fields.getTextInputValue(
-            'qtd'
-        )
-    );
-
-const mensagemId =
-    interaction.fields.getTextInputValue(
-        'mensagem_id'
-    );
-
-                let evento = null;
-
-const canais = [
-
-    client.channels.cache.get(
-        RAID_ACTIVE_CHANNEL_ID
-    ),
-
-    client.channels.cache.get(
-        RAID_ARCHIVE_CHANNEL_ID
-    )
-];
-
-for (const canal of canais) {
-
-    try {
-
-        evento =
-            await canal.messages.fetch(
-                mensagemId
-            );
-
-        if (evento)
-            break;
-
-    } catch {}
-}
-
-if (!evento) {
-
-    return interaction.reply({
-        content:
-            '❌ Evento do Raid Helper não encontrado.',
-        ephemeral: true
-    });
-}
-
-const participantes =
-    await extrairParticipantesRH(
-        evento
-    );
-
-dgSessions.set(
-    interaction.user.id,
-    {
-        data,
-        horario,
-        restante: qtd,
-        participantes
-    }
-);
-
-return interaction.reply({
-    content:
-`✅ DG registrada.
-
-📅 ${data}
-🕒 ${horario}
-🏰 ${qtd} DG(s)
-
-👥 ${Object.keys(participantes).length} participantes encontrados no Raid Helper.
-
-Agora envie os metters.`,
-    ephemeral: true
-});
+                return processarModalDG(
+                    interaction,
+                    client
+                );
             }
         }
 
+        // SLASH COMMANDS
         if (
             !interaction.isChatInputCommand()
         ) return;
 
+        // REGISTRAR DG
         if (
             interaction.commandName ===
             'registrardg'
         ) {
 
-            const hasPermission =
-                interaction.member.roles.cache.some(
-                    role =>
-                        DG_STAFF_ROLES.includes(
-                            role.id
-                        )
-                );
-
-            if (!hasPermission) {
-
-                return interaction.reply({
-                    content:
-                        '❌ Sem permissão.',
-                    ephemeral: true
-                });
-            }
-
-            const modal =
-                new ModalBuilder()
-                    .setCustomId(
-                        'registrar_dg_modal'
-                    )
-                    .setTitle(
-                        'Registrar DG'
-                    );
-
-            const dataInput =
-                new TextInputBuilder()
-                    .setCustomId(
-                        'data'
-                    )
-                    .setLabel(
-                        'Data'
-                    )
-                    .setStyle(
-                        TextInputStyle.Short
-                    )
-                    .setPlaceholder(
-                        '27/05/2026'
-                    )
-                    .setRequired(true);
-
-            const horarioInput =
-                new TextInputBuilder()
-                    .setCustomId(
-                        'horario'
-                    )
-                    .setLabel(
-                        'Horário'
-                    )
-                    .setStyle(
-                        TextInputStyle.Short
-                    )
-                    .setPlaceholder(
-                        '18:00'
-                    )
-                    .setRequired(true);
-
-            const qtdInput =
-                new TextInputBuilder()
-                    .setCustomId(
-                        'qtd'
-                    )
-                    .setLabel(
-                        'Quantidade de DGs'
-                    )
-                    .setStyle(
-                        TextInputStyle.Short
-                    )
-                    .setPlaceholder(
-                        '3'
-                    )
-                    .setRequired(true);
-
-            const mensagemIdInput =
-    new TextInputBuilder()
-        .setCustomId(
-            'mensagem_id'
-        )
-        .setLabel(
-            'ID da mensagem do Raid Helper'
-        )
-        .setStyle(
-            TextInputStyle.Short
-        )
-        .setPlaceholder(
-            '150999999999999999'
-        )
-        .setRequired(true);
-
-            modal.addComponents(
-
-    new ActionRowBuilder()
-        .addComponents(
-            dataInput
-        ),
-
-    new ActionRowBuilder()
-        .addComponents(
-            horarioInput
-        ),
-
-    new ActionRowBuilder()
-        .addComponents(
-            qtdInput
-        ),
-
-    new ActionRowBuilder()
-        .addComponents(
-            mensagemIdInput
-        )
-
-);
-
-            return interaction.showModal(
-                modal
+            return executarRegistroDG(
+                interaction
             );
         }
 
+        // PERMISSÃO ADMIN
+        if (
+            !interaction.member.permissions.has(
+                PermissionsBitField.Flags.Administrator
+            )
+        ) {
+
+            return interaction.reply({
+                content:
+                    '❌ Sem permissão.',
+                ephemeral: true
+            });
+        }
+
+        // CLEAN DC
+        if (
+            interaction.commandName ===
+            'cleandc'
+        ) {
+
+            await interaction.reply({
+                content:
+                    '🧹 Executando limpeza manual...',
+                ephemeral: true
+            });
+
+            const guild =
+                await client.guilds.fetch(
+                    GUILD_ID
+                );
+
+            executarLimpeza(
+                guild
+            );
+        }
+
+        // ATIVIDADE
         if (
             interaction.commandName ===
             'atividade'
@@ -1069,10 +597,8 @@ Agora envie os metters.`,
                     );
 
                 const ultima =
-                    Number(
-                        row?.get(
-                            'lastActivity'
-                        )
+                    row?.get(
+                        'lastActivity'
                     ) ||
                     member.joinedTimestamp ||
                     Date.now();
@@ -1102,13 +628,9 @@ Agora envie os metters.`,
 
                 if (ultima < limite) {
 
-                    inativos.push({
-                        user:
-                            member.user.tag,
-                        nome:
-                            member.displayName,
-                        ultima
-                    });
+                    inativos.push(
+                        `• ${member.user.tag} → ${member.displayName}\n└ 📅 ${formatarData(ultima)}`
+                    );
                 }
             }
 
@@ -1117,203 +639,65 @@ Agora envie os metters.`,
                     b.total - a.total
             );
 
-            inativos.sort(
-                (a, b) =>
-                    a.ultima - b.ultima
-            );
-
-            const topAtivos =
-                ativos.slice(0, 10);
-
-            const topInativos =
-                inativos.slice(0, 15);
-
-            const rankingAtivos =
-                topAtivos.map(
+            const ranking =
+                ativos.map(
                     (a, index) => {
 
                         let posicao;
 
-                        if (index === 0)
+                        if (
+                            index === 0
+                        )
                             posicao = '🥇';
 
-                        else if (index === 1)
+                        else if (
+                            index === 1
+                        )
                             posicao = '🥈';
 
-                        else if (index === 2)
+                        else if (
+                            index === 2
+                        )
                             posicao = '🥉';
 
                         else
                             posicao =
                                 `${index + 1}.`;
 
-                        return `${posicao} ${a.user} • ${a.nome}
-└ ${a.total} participações • 📅 ${formatarData(a.ultima)}`;
+                        return `${posicao} ${a.user} • ${a.nome}\n└ ${a.total} participações • 📅 ${formatarData(a.ultima)}`;
                     }
                 );
 
-            const rankingInativos =
-                topInativos.map(
-                    (a, index) => {
-
-                        return `💤 ${index + 1}. ${a.user} • ${a.nome}
-└ 📅 ${formatarData(a.ultima)}`;
-                    }
-                );
-
-            const embed1 =
+            const embed =
                 new EmbedBuilder()
                     .setColor('#5865F2')
                     .setTitle(
-                        '📊 Top 10 Ativos'
+                        '📊 Relatório de Atividade'
                     )
                     .setDescription(
-                        rankingAtivos.length > 0
-                            ? rankingAtivos.join('\n\n')
-                            : 'Nenhum ativo.'
+                        [
+                            '## 🟢 Ranking de Atividade',
+                            ranking.length > 0
+                                ? ranking.join('\n\n')
+                                : 'Nenhum ativo.',
+                            '',
+                            '## 🔴 Inativos',
+                            inativos.length > 0
+                                ? inativos.join('\n\n')
+                                : 'Nenhum inativo.'
+                        ].join('\n')
                     )
                     .setFooter({
                         text:
-                            `Página 1/2 • Atualizado em ${new Date().toLocaleString('pt-BR')}`
+                            'Sistema de atividade Avalon'
                     })
                     .setTimestamp();
 
-            const embed2 =
-                new EmbedBuilder()
-                    .setColor('#ff9900')
-                    .setTitle(
-                        '🔴 Top 15 Inativos'
-                    )
-                    .setDescription(
-                        rankingInativos.length > 0
-                            ? rankingInativos.join('\n\n')
-                            : 'Nenhum inativo.'
-                    )
-                    .setFooter({
-                        text:
-                            `Página 2/2 • Atualizado em ${new Date().toLocaleString('pt-BR')}`
-                    })
-                    .setTimestamp();
-
-            return interaction.reply({
-                embeds: [
-                    embed1,
-                    embed2
-                ],
+            interaction.reply({
+                embeds: [embed],
                 ephemeral: true
             });
         }
-
-        if (
-            !interaction.member.permissions.has(
-                PermissionsBitField.Flags.Administrator
-            )
-        ) {
-
-            return interaction.reply({
-                content:
-                    '❌ Sem permissão.',
-                ephemeral: true
-            });
-        }
-
-        if (
-            interaction.commandName ===
-            'cleandc'
-        ) {
-
-            await interaction.reply({
-                content:
-                    '🧹 Executando limpeza manual...',
-                ephemeral: true
-            });
-
-            const guild =
-                await client.guilds.fetch(
-                    GUILD_ID
-                );
-
-            executarLimpeza(
-                guild
-            );
-        }
-    }
-);
-
-client.on(
-    'messageCreate',
-    async message => {
-
-        if (
-            message.author.bot
-        ) return;
-
-        const session =
-            dgSessions.get(
-                message.author.id
-            );
-
-        if (!session)
-            return;
-
-        const linhas =
-            message.content
-                .split('\n');
-
-        const regex =
-            /\d+\.\s(.+?):\s(\d+)\((.+?)\)\|(.+?)\sDPS/;
-
-        for (
-            const linha of linhas
-        ) {
-
-            const match =
-                linha.match(regex);
-
-            if (!match)
-                continue;
-
-            const nome =
-                match[1].trim();
-
-            const dano =
-                Number(
-                    match[2]
-                );
-
-            const dps =
-                parseFloat(
-                    match[4]
-                        .replace(',', '.')
-                );
-
-            await atualizarRankingDG(
-                nome,
-                dano,
-                dps
-            );
-        }
-
-        session.restante--;
-
-        if (
-            session.restante <= 0
-        ) {
-
-            dgSessions.delete(
-                message.author.id
-            );
-
-            await atualizarEmbedsRanking();
-
-            return message.reply(
-                '✅ Todas as DGs foram registradas.'
-            );
-        }
-
-        message.reply(
-            `✅ Metter registrado.\n🏰 Restam ${session.restante} DG(s).`
-        );
     }
 );
 
