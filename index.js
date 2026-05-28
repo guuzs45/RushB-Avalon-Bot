@@ -246,6 +246,11 @@ async function buscarEventoRaidHelper(
         )
     ];
 
+    const alvo =
+        `${data} ${horario}`;
+
+    let melhorEvento = null;
+
     for (const canal of canais) {
 
         if (!canal)
@@ -253,7 +258,7 @@ async function buscarEventoRaidHelper(
 
         const mensagens =
             await canal.messages.fetch({
-                limit: 100
+                limit: 50
             });
 
         for (
@@ -265,26 +270,73 @@ async function buscarEventoRaidHelper(
                 RAID_HELPER_ID
             ) continue;
 
+            const embed =
+                mensagem.embeds[0];
+
+            if (!embed)
+                continue;
+
             const conteudo =
-                [
-                    mensagem.content,
-                    ...mensagem.embeds.map(
-                        e =>
-                            `${e.title || ''}\n${e.description || ''}`
-                    )
-                ].join('\n');
+[
+    embed.title || '',
+    embed.description || '',
+    ...(embed.fields || []).map(
+        f => f.value || ''
+    )
+].join('\n');
+
+            const match =
+                conteudo.match(
+                    /<t:(\d+):d>[\s\S]*?<t:\d+:t>/
+                );
+
+            if (!match)
+                continue;
+
+            const timestamp =
+                Number(match[1]) * 1000;
+
+            const dataEvento =
+                new Date(timestamp);
+
+            const dataFormatada =
+                dataEvento
+                    .toLocaleDateString(
+                        'pt-BR',
+                        {
+                            timeZone:
+                                'America/Sao_Paulo'
+                        }
+                    );
+
+            const horaFormatada =
+                dataEvento
+                    .toLocaleTimeString(
+                        'pt-BR',
+                        {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            timeZone:
+                                'America/Sao_Paulo'
+                        }
+                    );
+
+            const comparacao =
+                `${dataFormatada} ${horaFormatada}`;
 
             if (
-                conteudo.includes(data) &&
-                conteudo.includes(horario)
+                comparacao === alvo
             ) {
 
-                return mensagem;
+                melhorEvento =
+                    mensagem;
+
+                break;
             }
         }
     }
 
-    return null;
+    return melhorEvento;
 }
 
 async function extrairParticipantesRH(
