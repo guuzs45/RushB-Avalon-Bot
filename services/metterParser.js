@@ -13,7 +13,7 @@ function parseMetter(
 
         const match =
             linha.match(
-                /\d+\.\s(.+?):\s([\d]+).*?([\d,.]+)\sDPS/i
+                /\d+\.\s(.+?):\s([\d.,]+).*?([\d,.]+)\sDPS/i
             );
 
         if (!match)
@@ -25,16 +25,30 @@ function parseMetter(
 
         const dano =
             Number(
+
                 match[2]
+
                     .replaceAll(
                         '.',
                         ''
+                    )
+
+                    .replace(
+                        ',',
+                        '.'
                     )
             );
 
         const dps =
             Number(
+
                 match[3]
+
+                    .replaceAll(
+                        '.',
+                        ''
+                    )
+
                     .replace(
                         ',',
                         '.'
@@ -53,5 +67,6 @@ function parseMetter(
 }
 
 module.exports = {
+
     parseMetter
 };

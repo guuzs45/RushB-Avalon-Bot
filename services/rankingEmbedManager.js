@@ -196,7 +196,7 @@ async function atualizarRankingEmbed(
                         ranking
                     ),
 
-                    '\n\n',
+                    '\n\n──────────────\n\n',
 
                     criarLista(
                         ranking,
