@@ -61,6 +61,14 @@ const {
     './services/finalizarDG'
 );
 
+const {
+
+    iniciarRankingSheet
+
+} = require(
+    './services/rankingService'
+);
+
 const serviceAccount =
     JSON.parse(
         process.env.GOOGLE_SERVICE_ACCOUNT
@@ -550,13 +558,14 @@ client.once(
     async () => {
 
         console.log(
+    `✅ Bot online: ${client.user.tag}`
+);
 
-            `✅ Bot online: ${client.user.tag}`
-        );
+await iniciarSheets();
 
-        await iniciarSheets();
+await iniciarRankingSheet();
 
-        const commands = [
+const commands = [
 
             new SlashCommandBuilder()
 
