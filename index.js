@@ -69,6 +69,22 @@ const {
     './services/rankingService'
 );
 
+const {
+
+    executarAttrank
+
+} = require(
+    './commands/attrank'
+);
+
+const {
+
+    processarRankingButtons
+
+} = require(
+    './services/rankingButtons'
+);
+
 const serviceAccount =
     JSON.parse(
         process.env.GOOGLE_SERVICE_ACCOUNT
@@ -595,7 +611,16 @@ const commands = [
 
                 .setDescription(
                     'Registrar DG'
-                )
+                ),
+
+                new SlashCommandBuilder()
+
+    .setName(
+        'attrank'
+    )
+
+    .setDescription(
+        'Atualiza o ranking'),
 
         ].map(
             command =>
@@ -657,6 +682,18 @@ client.on(
             interaction.isButton()
         ) {
 
+if (
+
+    interaction.customId.startsWith(
+        'rank_'
+    )
+) {
+
+    return processarRankingButtons(
+        interaction
+    );
+}
+
             if (
 
                 interaction.customId ===
@@ -714,16 +751,30 @@ client.on(
         ) return;
 
         // REGISTRAR DG
-        if (
+if (
 
-            interaction.commandName ===
-            'registrardg'
-        ) {
+    interaction.commandName ===
+    'registrardg'
+) {
 
-            return executarRegistroDG(
-                interaction
-            );
-        }
+    return executarRegistroDG(
+        interaction
+    );
+}
+
+// ATUALIZAR RANKING
+if (
+
+    interaction.commandName ===
+    'attrank'
+) {
+
+    return executarAttrank(
+
+        interaction,
+        client
+    );
+}
 
         // ADMIN
         if (
