@@ -15,8 +15,7 @@ const dgSessions =
 
 const {
 
-    salvarPlayer,
-    buscarRanking
+    salvarPlayer
 
 } = require(
     './rankingService'
@@ -24,20 +23,20 @@ const {
 
 const {
 
-    criarRankingEmbed
+    atualizarRankingEmbed
 
 } = require(
-    './rankingEmbeds'
+    './rankingEmbedManager'
 );
 
 async function finalizarDG(
     interaction
 ) {
 
-await interaction.deferReply({
+    await interaction.deferReply({
 
-    ephemeral: true
-});
+        ephemeral: true
+    });
 
     const userId =
         interaction.user.id;
@@ -59,15 +58,14 @@ await interaction.deferReply({
 
     if (
         !classes ||
-        !players
+        !players ||
+        !dgInfo
     ) {
 
-        return interaction.reply({
+        return interaction.editReply({
 
             content:
-                '❌ Dados da DG não encontrados.',
-
-            ephemeral: true
+                '❌ Dados da DG não encontrados.'
         });
     }
 
@@ -101,43 +99,15 @@ await interaction.deferReply({
         });
     }
 
-    const ranking =
-        await buscarRanking();
+    await atualizarRankingEmbed(
 
-    const embed =
-        criarRankingEmbed(
-            ranking
-        );
+        interaction.client,
 
-    const canal =
-        interaction.guild.channels.cache.get(
-            process.env.RANKING_GERAL_CHANNEL_ID
-        );
+        process.env
+            .RANKING_GERAL_CHANNEL_ID,
 
-    const mensagens =
-        await canal.messages.fetch({
-            limit: 10
-        });
-
-    const antiga =
-        mensagens.find(
-            m =>
-                m.author.id ===
-                interaction.client.user.id
-        );
-
-    if (antiga) {
-
-        await antiga.edit({
-            embeds: [embed]
-        });
-
-    } else {
-
-        await canal.send({
-            embeds: [embed]
-        });
-    }
+        0
+    );
 
     classSelections.delete(
         userId
@@ -154,12 +124,11 @@ await interaction.deferReply({
     return interaction.editReply({
 
         content:
-            '✅ DG finalizada com sucesso.',
-
-        ephemeral: true
+            '✅ DG finalizada com sucesso.'
     });
 }
 
 module.exports = {
+
     finalizarDG
 };

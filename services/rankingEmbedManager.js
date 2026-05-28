@@ -37,6 +37,17 @@ function emojiClasse(
     ]?.emoji || '⚔️';
 }
 
+function formatarNumero(
+    numero
+) {
+
+    return Number(
+        numero || 0
+    ).toLocaleString(
+        'pt-BR'
+    );
+}
+
 function criarTop3(
     ranking
 ) {
@@ -45,28 +56,34 @@ function criarTop3(
         ranking.slice(0, 3);
 
     const medals = [
+
         '🥇',
         '🥈',
         '🥉'
     ];
 
     return top3.map(
+
         (player, index) => {
 
             return [
-                `${medals[index]} ${emojiClasse(player.classe)} ${player.nickname}`,
-                `🏰 ${player.totalDG} DGs`,
-                `⚔️ ${player.maxDano.toLocaleString('pt-BR')}`,
-                `🔥 ${player.maxDps.toFixed(0)} DPS`
+                `# ${medals[index]} ${player.nickname}`,
+                `${emojiClasse(player.classe)} ${player.totalDG} DGs`,
+                `⚔️ ${formatarNumero(player.maxDano)}`,
+                `🔥 ${formatarNumero(player.maxDps)} DPS`
             ].join('\n');
         }
-    ).join('\n\n');
+
+    ).join('\n\n──────────────\n\n');
 }
 
 function criarLista(
     ranking,
     page
 ) {
+
+    const semTop3 =
+        ranking.slice(3);
 
     const start =
         page * 10;
@@ -75,20 +92,32 @@ function criarLista(
         start + 10;
 
     const players =
-        ranking.slice(
+        semTop3.slice(
             start,
             end
         );
 
+    if (
+        players.length === 0
+    ) {
+
+        return 'Sem players.';
+    }
+
     return players.map(
+
         (player, index) => {
 
             const pos =
-                start + index + 1;
+                start + index + 4;
 
-            return `${pos}. ${emojiClasse(player.classe)} ${player.nickname} • ${player.totalDG} DGs`;
+            return [
+                `\`${pos}.\` ${emojiClasse(player.classe)} **${player.nickname}**`,
+                `└ 🏰 ${player.totalDG} • ⚔️ ${formatarNumero(player.maxDano)} • 🔥 ${formatarNumero(player.maxDps)}`
+            ].join('\n');
         }
-    ).join('\n');
+
+    ).join('\n\n');
 }
 
 async function atualizarRankingEmbed(
@@ -101,9 +130,19 @@ async function atualizarRankingEmbed(
         await buscarRanking();
 
     const totalPages =
-        Math.ceil(
-            ranking.length / 10
+        Math.max(
+            1,
+            Math.ceil(
+                (ranking.length - 3) / 10
+            )
         );
+
+    if (
+        page >= totalPages
+    ) {
+
+        page = 0;
+    }
 
     const embed =
         new EmbedBuilder()
@@ -116,36 +155,27 @@ async function atualizarRankingEmbed(
                 '🏆 Ranking DG Avalon'
             )
 
-            .addFields(
+            .setDescription(
 
-                {
+                [
+                    '## 🔥 Top 3\n',
+                    criarTop3(
+                        ranking
+                    ),
 
-                    name:
-                        '🔥 Top 3',
+                    '\n\n## 📜 Ranking Geral\n',
 
-                    value:
-                        criarTop3(
-                            ranking
-                        ) || 'Sem dados.'
-                },
-
-                {
-
-                    name:
-                        `📜 Ranking Geral • Página ${page + 1}/${totalPages || 1}`,
-
-                    value:
-                        criarLista(
-                            ranking,
-                            page
-                        ) || 'Sem players.'
-                }
+                    criarLista(
+                        ranking,
+                        page
+                    )
+                ].join('')
             )
 
             .setFooter({
 
                 text:
-                    'Sistema Avalon DG'
+                    `Página ${page + 1}/${totalPages} • Sistema Avalon DG`
             })
 
             .setTimestamp();
@@ -161,7 +191,7 @@ async function atualizarRankingEmbed(
                         `rank_prev_${page}`
                     )
 
-                    .setLabel(
+                    .setEmoji(
                         '⬅️'
                     )
 
@@ -175,7 +205,7 @@ async function atualizarRankingEmbed(
                         `rank_next_${page}`
                     )
 
-                    .setLabel(
+                    .setEmoji(
                         '➡️'
                     )
 
