@@ -53,6 +53,26 @@ async function iniciarRankingSheet() {
         ];
 }
 
+function parseNumero(
+    valor
+) {
+
+    return Number(
+
+        String(valor || 0)
+
+            .replaceAll(
+                '.',
+                ''
+            )
+
+            .replace(
+                ',',
+                '.'
+            )
+    );
+}
+
 async function salvarPlayer({
 
     nickname,
@@ -98,24 +118,24 @@ async function salvarPlayer({
     }
 
     const totalDG =
-        Number(
+        parseNumero(
             row.get(
                 'totalDG'
-            ) || 0
+            )
         );
 
     const maxDano =
-        Number(
+        parseNumero(
             row.get(
                 'maxDano'
-            ) || 0
+            )
         );
 
     const maxDps =
-        Number(
+        parseNumero(
             row.get(
                 'maxDps'
-            ) || 0
+            )
         );
 
     row.set(
@@ -163,10 +183,10 @@ async function buscarRanking() {
                     ),
 
                 totalDG:
-                    Number(
+                    parseNumero(
                         row.get(
                             'totalDG'
-                        ) || 0
+                        )
                     ),
 
                 classe:
@@ -175,17 +195,17 @@ async function buscarRanking() {
                     ),
 
                 maxDano:
-                    Number(
+                    parseNumero(
                         row.get(
                             'maxDano'
-                        ) || 0
+                        )
                     ),
 
                 maxDps:
-                    Number(
+                    parseNumero(
                         row.get(
                             'maxDps'
-                        ) || 0
+                        )
                     )
             })
         )
