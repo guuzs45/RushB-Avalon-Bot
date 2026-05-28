@@ -2,60 +2,25 @@ const {
 
     EmbedBuilder,
     ActionRowBuilder,
-    StringSelectMenuBuilder
+    StringSelectMenuBuilder,
+    ButtonBuilder,
+    ButtonStyle
 
 } = require(
     'discord.js'
 );
 
 const {
+
     CLASS_MAPPINGS
+
 } = require(
     './constants'
 );
 
-function criarSelectClasse(
-    player,
-    index
+function criarEmbedSelecaoClasses(
+    players
 ) {
-
-    return new StringSelectMenuBuilder()
-
-        .setCustomId(
-    `classe_${player.nickname}`
-)
-
-        .setPlaceholder(
-            `Classe de ${player}`
-        )
-
-        .addOptions(
-
-            Object.entries(
-                CLASS_MAPPINGS
-            ).map(
-                ([key, value]) => ({
-
-                    label:
-                        value.label,
-
-                    value:
-                        key,
-
-                    emoji:
-                        value.emoji
-                })
-            )
-        );
-}
-
-function criarPaginaClasses({
-
-    players,
-    pagina,
-    totalPaginas
-
-}) {
 
     const embed =
         new EmbedBuilder()
@@ -65,79 +30,92 @@ function criarPaginaClasses({
             )
 
             .setTitle(
-                '📊 Registrar Classes'
+                '📋 Selecione as classes'
             )
 
             .setDescription(
-                'Selecione a classe de cada jogador.'
-            )
-
-            .setFooter({
-
-                text:
-                    `Página ${pagina}/${totalPaginas}`
-            });
+                'Selecione a classe de cada player.'
+            );
 
     const rows = [];
 
-    players.forEach(
-        (player, index) => {
+    for (
+        const player of players
+    ) {
 
-            rows.push(
-
-                new ActionRowBuilder()
-
-                    .addComponents(
-
-                        criarSelectClasse(
-                            player.nickname,
-                            index
-                        )
-                    )
-            );
-        }
-    );
-
-    const {
-
-    ButtonBuilder,
-    ButtonStyle
-
-} = require(
-    'discord.js'
-);
-
-const finalizarButton =
-    new ActionRowBuilder()
-
-        .addComponents(
-
-            new ButtonBuilder()
+        const menu =
+            new StringSelectMenuBuilder()
 
                 .setCustomId(
-                    'finalizar_dg'
+                    `classe_${player.nickname}`
                 )
 
-                .setLabel(
-                    'Finalizar DG'
+                .setPlaceholder(
+                    `Classe de ${player.nickname}`
                 )
 
-                .setStyle(
-                    ButtonStyle.Success
+                .addOptions(
+
+                    Object.entries(
+                        CLASS_MAPPINGS
+                    ).map(
+
+                        ([key, value]) => ({
+
+                            label:
+                                value.nome,
+
+                            value:
+                                key,
+
+                            emoji:
+                                value.emoji
+                        })
+                    )
+                );
+
+        rows.push(
+
+            new ActionRowBuilder()
+
+                .addComponents(
+                    menu
                 )
         );
+    }
 
-rows.push(
-    finalizarButton
-);
+    const finalizarButton =
+        new ActionRowBuilder()
 
-return {
-    embed,
-    rows
-};
+            .addComponents(
+
+                new ButtonBuilder()
+
+                    .setCustomId(
+                        'finalizar_dg'
+                    )
+
+                    .setLabel(
+                        'Finalizar DG'
+                    )
+
+                    .setStyle(
+                        ButtonStyle.Success
+                    )
+            );
+
+    rows.push(
+        finalizarButton
+    );
+
+    return {
+
+        embed,
+        rows
+    };
 }
 
 module.exports = {
 
-    criarPaginaClasses
+    criarEmbedSelecaoClasses
 };
