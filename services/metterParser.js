@@ -13,7 +13,8 @@ function parseMetter(
 
         const match =
             linha.match(
-                /\d+\.\s(.+?):\s([\d.,]+).*?([\d,.]+)\sDPS/i
+
+                /^\d+\.\s(.+?):\s([\d.]+)\([\d,.]+%\)\|([\d,.]+)\sDPS$/i
             );
 
         if (!match)
@@ -27,15 +28,9 @@ function parseMetter(
             Number(
 
                 match[2]
-
                     .replaceAll(
                         '.',
                         ''
-                    )
-
-                    .replace(
-                        ',',
-                        '.'
                     )
             );
 
@@ -43,12 +38,6 @@ function parseMetter(
             Number(
 
                 match[3]
-
-                    .replaceAll(
-                        '.',
-                        ''
-                    )
-
                     .replace(
                         ',',
                         '.'
