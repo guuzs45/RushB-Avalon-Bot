@@ -88,10 +88,10 @@ async function salvarPlayer({
             classe,
 
             maxDano:
-                dano,
+                Number(dano),
 
             maxDps:
-                dps
+                Number(dps)
         });
 
         return;
@@ -132,7 +132,7 @@ async function salvarPlayer({
         'maxDano',
         Math.max(
             maxDano,
-            dano
+            Number(dano)
         )
     );
 
@@ -140,7 +140,7 @@ async function salvarPlayer({
         'maxDps',
         Math.max(
             maxDps,
-            dps
+            Number(dps)
         )
     );
 
@@ -153,6 +153,7 @@ async function buscarRanking() {
         await rankingSheet.getRows();
 
     return rows
+
         .map(
             row => ({
 
