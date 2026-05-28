@@ -103,9 +103,9 @@ function criarTop3Fields(
 [
 `${emojiClasse(player.classe)} ${nomeClasse(player.classe)}`,
 
-`🏰 ${player.totalDG} DGs`,
+`${player.totalDG} DGs`,
 
-`⚔️ ${formatarMilhoes(player.maxDano)}`,
+`${formatarMilhoes(player.maxDano)}`,
 
 `🔥 ${formatarDps(player.maxDps)}`
 ]
@@ -199,20 +199,36 @@ async function atualizarRankingEmbed(
                 '🏆 Ranking DG Avalon'
             )
 
-            .addFields(
-
-                criarTop3Fields(
-                    ranking
-                )
-            )
-
             .setDescription(
 
-                `──────────────\n\n${criarLista(
-                    ranking,
-                    page
-                )}`
-            )
+[
+    ...criarTop3Fields(
+        ranking
+    ).map(
+
+        field =>
+
+`${field.name}
+${field.value}`
+    ),
+
+    '\n──────────────'
+]
+
+.join('\n\n')
+)
+
+            .addFields({
+
+                name:
+                    '\u200B',
+
+                value:
+                    criarLista(
+                        ranking,
+                        page
+                    )
+            })
 
             .setFooter({
 
