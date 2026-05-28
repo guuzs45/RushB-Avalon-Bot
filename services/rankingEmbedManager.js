@@ -37,6 +37,15 @@ function emojiClasse(
     ]?.emoji || '⚔️';
 }
 
+function nomeClasse(
+    classe
+) {
+
+    return CLASS_MAPPINGS[
+        classe
+    ]?.nome || 'Desconhecida';
+}
+
 function formatarNumero(
     numero
 ) {
@@ -46,6 +55,16 @@ function formatarNumero(
     ).toLocaleString(
         'pt-BR'
     );
+}
+
+function formatarMilhoes(
+    numero
+) {
+
+    return (
+        Number(numero || 0) /
+        1000000
+    ).toFixed(1) + 'm';
 }
 
 function criarTop3(
@@ -67,11 +86,20 @@ function criarTop3(
         (player, index) => {
 
             return [
-                `# ${medals[index]} ${player.nickname}`,
-                `${emojiClasse(player.classe)} ${player.totalDG} DGs`,
-                `⚔️ ${formatarNumero(player.maxDano)}`,
-                `🔥 ${formatarNumero(player.maxDps)} DPS`
-            ].join('\n');
+
+                `## ${medals[index]} ${player.nickname}`,
+
+                `🎭 Classe mais jogada: ${emojiClasse(player.classe)} ${nomeClasse(player.classe)}`,
+
+                `🏰 Total de DGs: ${player.totalDG}`,
+
+                `⚔️ Dano recorde: ${formatarMilhoes(player.maxDano)}`,
+
+                `🔥 DPS recorde: ${formatarNumero(player.maxDps)}`
+            ]
+
+            .join('\n');
+
         }
 
     ).join('\n\n──────────────\n\n');
@@ -112,9 +140,14 @@ function criarLista(
                 start + index + 4;
 
             return [
+
                 `\`${pos}.\` ${emojiClasse(player.classe)} **${player.nickname}**`,
-                `└ 🏰 ${player.totalDG} • ⚔️ ${formatarNumero(player.maxDano)} • 🔥 ${formatarNumero(player.maxDps)}`
-            ].join('\n');
+
+                `└ 🏰 ${player.totalDG} DGs • ⚔️ ${formatarMilhoes(player.maxDano)} • 🔥 ${formatarNumero(player.maxDps)}`
+            ]
+
+            .join('\n');
+
         }
 
     ).join('\n\n');
@@ -158,7 +191,9 @@ async function atualizarRankingEmbed(
             .setDescription(
 
                 [
+
                     '## 🔥 Top 3\n',
+
                     criarTop3(
                         ranking
                     ),
@@ -169,6 +204,7 @@ async function atualizarRankingEmbed(
                         ranking,
                         page
                     )
+
                 ].join('')
             )
 
