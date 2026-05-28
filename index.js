@@ -783,10 +783,8 @@ if (
     });
 
     await executarAttrank(
-
-        interaction,
-        client
-    );
+    client
+);
 
     await atualizarRankingClasses(
 
