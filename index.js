@@ -505,7 +505,11 @@ async function executarLimpeza(guild) {
             );
 
         const ultima =
-            row?.get('lastActivity') ||
+            Number(
+                row?.get(
+                    'lastActivity'
+                )
+            ) ||
             member.joinedTimestamp ||
             Date.now();
 
@@ -829,6 +833,196 @@ Agora envie os metters.`,
             return interaction.showModal(
                 modal
             );
+        }
+
+        if (
+            interaction.commandName ===
+            'atividade'
+        ) {
+
+            const guild =
+                await client.guilds.fetch(
+                    GUILD_ID
+                );
+
+            const members =
+                await guild.members.fetch();
+
+            const limite =
+                Date.now() -
+                (
+                    7 *
+                    24 *
+                    60 *
+                    60 *
+                    1000
+                );
+
+            let ativos = [];
+            let inativos = [];
+
+            const rows =
+                await sheet.getRows();
+
+            for (
+                const member of members.values()
+            ) {
+
+                if (member.user.bot)
+                    continue;
+
+                const hasProtectedRole =
+                    member.roles.cache.some(
+                        role =>
+                            PROTECTED_ROLES.includes(
+                                role.id
+                            )
+                    );
+
+                if (hasProtectedRole)
+                    continue;
+
+                const row =
+                    rows.find(
+                        r =>
+                            r.get('userId') ===
+                            member.id
+                    );
+
+                const ultima =
+                    Number(
+                        row?.get(
+                            'lastActivity'
+                        )
+                    ) ||
+                    member.joinedTimestamp ||
+                    Date.now();
+
+                const interactions =
+                    Number(
+                        row?.get(
+                            'interactions'
+                        ) || 0
+                    );
+
+                if (
+                    interactions > 0 &&
+                    ultima >= limite
+                ) {
+
+                    ativos.push({
+                        user:
+                            member.user.tag,
+                        nome:
+                            member.displayName,
+                        total:
+                            interactions,
+                        ultima
+                    });
+                }
+
+                if (ultima < limite) {
+
+                    inativos.push({
+                        user:
+                            member.user.tag,
+                        nome:
+                            member.displayName,
+                        ultima
+                    });
+                }
+            }
+
+            ativos.sort(
+                (a, b) =>
+                    b.total - a.total
+            );
+
+            inativos.sort(
+                (a, b) =>
+                    a.ultima - b.ultima
+            );
+
+            const topAtivos =
+                ativos.slice(0, 10);
+
+            const topInativos =
+                inativos.slice(0, 15);
+
+            const rankingAtivos =
+                topAtivos.map(
+                    (a, index) => {
+
+                        let posicao;
+
+                        if (index === 0)
+                            posicao = '🥇';
+
+                        else if (index === 1)
+                            posicao = '🥈';
+
+                        else if (index === 2)
+                            posicao = '🥉';
+
+                        else
+                            posicao =
+                                `${index + 1}.`;
+
+                        return `${posicao} ${a.user} • ${a.nome}
+└ ${a.total} participações • 📅 ${formatarData(a.ultima)}`;
+                    }
+                );
+
+            const rankingInativos =
+                topInativos.map(
+                    (a, index) => {
+
+                        return `💤 ${index + 1}. ${a.user} • ${a.nome}
+└ 📅 ${formatarData(a.ultima)}`;
+                    }
+                );
+
+            const embed1 =
+                new EmbedBuilder()
+                    .setColor('#5865F2')
+                    .setTitle(
+                        '📊 Top 10 Ativos'
+                    )
+                    .setDescription(
+                        rankingAtivos.length > 0
+                            ? rankingAtivos.join('\n\n')
+                            : 'Nenhum ativo.'
+                    )
+                    .setFooter({
+                        text:
+                            `Página 1/2 • Atualizado em ${new Date().toLocaleString('pt-BR')}`
+                    })
+                    .setTimestamp();
+
+            const embed2 =
+                new EmbedBuilder()
+                    .setColor('#ff9900')
+                    .setTitle(
+                        '🔴 Top 15 Inativos'
+                    )
+                    .setDescription(
+                        rankingInativos.length > 0
+                            ? rankingInativos.join('\n\n')
+                            : 'Nenhum inativo.'
+                    )
+                    .setFooter({
+                        text:
+                            `Página 2/2 • Atualizado em ${new Date().toLocaleString('pt-BR')}`
+                    })
+                    .setTimestamp();
+
+            return interaction.reply({
+                embeds: [
+                    embed1,
+                    embed2
+                ],
+                ephemeral: true
+            });
         }
 
         if (
