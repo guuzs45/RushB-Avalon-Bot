@@ -192,8 +192,15 @@ async function processarModalDG(
 
             data,
             horario,
-            qtd
+            qtd,
+
+            metterAtual: 1
         }
+    );
+
+    metterSessions.set(
+        interaction.user.id,
+        []
     );
 
     const botao =
@@ -204,7 +211,7 @@ async function processarModalDG(
             )
 
             .setLabel(
-                'Enviar Metter'
+                `Enviar Metter 1/${qtd}`
             )
 
             .setStyle(
@@ -220,7 +227,7 @@ async function processarModalDG(
 🕒 ${horario}
 🏰 ${qtd} DG(s)
 
-Clique abaixo para enviar o metter.`,
+Clique abaixo para enviar o primeiro metter.`,
 
         components: [
 
@@ -238,6 +245,22 @@ async function abrirModalMetter(
     interaction
 ) {
 
+    const dgInfo =
+        dgSessions.get(
+            interaction.user.id
+        );
+
+    if (!dgInfo) {
+
+        return interaction.reply({
+
+            content:
+                '❌ Sessão expirada.',
+
+            ephemeral: true
+        });
+    }
+
     const modal =
         new ModalBuilder()
 
@@ -246,7 +269,8 @@ async function abrirModalMetter(
             )
 
             .setTitle(
-                'Enviar Metter'
+
+                `Metter ${dgInfo.metterAtual}/${dgInfo.qtd}`
             );
 
     const input =
@@ -294,8 +318,6 @@ async function processarMetter(
             texto
         );
 
-    console.log(players);
-
     if (
         players.length === 0
     ) {
@@ -309,10 +331,111 @@ async function processarMetter(
         });
     }
 
+    const dgInfo =
+        dgSessions.get(
+            interaction.user.id
+        );
+
+    if (!dgInfo) {
+
+        return interaction.reply({
+
+            content:
+                '❌ Sessão expirada.',
+
+            ephemeral: true
+        });
+    }
+
+    const acumulado =
+        metterSessions.get(
+            interaction.user.id
+        ) || [];
+
+    acumulado.push(
+        ...players
+    );
+
     metterSessions.set(
         interaction.user.id,
-        players
+        acumulado
     );
+
+    // AINDA EXISTEM METTERS
+    if (
+        dgInfo.metterAtual <
+        dgInfo.qtd
+    ) {
+
+        dgInfo.metterAtual++;
+
+        dgSessions.set(
+            interaction.user.id,
+            dgInfo
+        );
+
+        const botao =
+            new ButtonBuilder()
+
+                .setCustomId(
+                    'enviar_metter'
+                )
+
+                .setLabel(
+
+`Enviar Metter ${dgInfo.metterAtual}/${dgInfo.qtd}`
+                )
+
+                .setStyle(
+                    ButtonStyle.Primary
+                );
+
+        return interaction.reply({
+
+            content:
+
+`✅ Metter ${dgInfo.metterAtual - 1}/${dgInfo.qtd} salvo.
+
+Clique abaixo para enviar o próximo metter.`,
+
+            components: [
+
+                new ActionRowBuilder()
+
+                    .addComponents(
+                        botao
+                    )
+            ],
+
+            ephemeral: true
+        });
+    }
+
+    // REMOVE DUPLICADOS PARA SELEÇÃO
+    const unicos =
+        [];
+
+    const nomes =
+        new Set();
+
+    for (
+        const player of acumulado
+    ) {
+
+        if (
+            nomes.has(
+                player.nickname
+            )
+        ) continue;
+
+        nomes.add(
+            player.nickname
+        );
+
+        unicos.push(
+            player
+        );
+    }
 
     const {
 
@@ -322,7 +445,7 @@ async function processarMetter(
     } =
         criarEmbedSelecaoClasses(
 
-            players,
+            unicos,
 
             0
         );
