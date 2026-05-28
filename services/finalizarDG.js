@@ -29,6 +29,14 @@ const {
     './rankingEmbedManager'
 );
 
+const {
+
+    atualizarRankingClasses
+
+} = require(
+    './classRankingEmbedManager'
+);
+
 async function finalizarDG(
     interaction
 ) {
@@ -107,6 +115,14 @@ async function finalizarDG(
             .RANKING_GERAL_CHANNEL_ID,
 
         0
+    );
+
+    await atualizarRankingClasses(
+
+        interaction.client,
+
+        process.env
+            .RANKING_CLASSES_CHANNEL_ID
     );
 
     classSelections.delete(

@@ -85,6 +85,14 @@ const {
     './services/rankingButtons'
 );
 
+const {
+
+    atualizarRankingClasses
+
+} = require(
+    './services/classRankingEmbedManager'
+);
+
 const serviceAccount =
     JSON.parse(
         process.env.GOOGLE_SERVICE_ACCOUNT
@@ -769,11 +777,30 @@ if (
     'attrank'
 ) {
 
-    return executarAttrank(
+    await interaction.deferReply({
+
+        ephemeral: true
+    });
+
+    await executarAttrank(
 
         interaction,
         client
     );
+
+    await atualizarRankingClasses(
+
+        client,
+
+        process.env
+            .RANKING_CLASSES_CHANNEL_ID
+    );
+
+    return interaction.editReply({
+
+        content:
+            '✅ Rankings atualizados.'
+    });
 }
 
         // ADMIN

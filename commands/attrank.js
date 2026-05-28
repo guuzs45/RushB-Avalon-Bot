@@ -7,14 +7,8 @@ const {
 );
 
 async function executarAttrank(
-    interaction,
     client
 ) {
-
-    await interaction.deferReply({
-
-        ephemeral: true
-    });
 
     await atualizarRankingEmbed(
 
@@ -25,12 +19,6 @@ async function executarAttrank(
 
         0
     );
-
-    return interaction.editReply({
-
-        content:
-            '✅ Ranking atualizado.'
-    });
 }
 
 module.exports = {
