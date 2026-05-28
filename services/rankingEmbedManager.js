@@ -46,32 +46,24 @@ function nomeClasse(
     ]?.nome || classe;
 }
 
-function formatarNumero(
-    numero
-) {
-
-    return Number(
-        numero || 0
-    ).toLocaleString(
-        'pt-BR'
-    );
-}
-
 function formatarDps(
     numero
 ) {
 
+    const valor =
+        Number(numero || 0);
+
+    if (
+        valor >= 1000
+    ) {
+
+        return (
+            valor / 1000
+        ).toFixed(1) + 'k';
+    }
+
     return Math.floor(
-
-        Number(
-
-            String(numero || 0)
-
-                .replace(
-                    ',',
-                    '.'
-                )
-        )
+        valor
     );
 }
 
@@ -85,7 +77,7 @@ function formatarMilhoes(
     ).toFixed(1) + 'm';
 }
 
-function criarTop3(
+function criarTop3Fields(
     ranking
 ) {
 
@@ -101,26 +93,28 @@ function criarTop3(
 
     return top3.map(
 
-        (player, index) => {
+        (player, index) => ({
 
-            return [
+            name:
+                `${medals[index]} ${player.nickname}`,
 
-                `## ${medals[index]} ${player.nickname}`,
+            value:
 
-                `Classe mais jogada: ${emojiClasse(player.classe)} ${nomeClasse(player.classe)}`,
+[
+`${emojiClasse(player.classe)} ${nomeClasse(player.classe)}`,
 
-                `Total de DGs: ${player.totalDG}`,
+`🏰 ${player.totalDG} DGs`,
 
-                `⚔️ Dano recorde: ${formatarMilhoes(player.maxDano)}`,
+`⚔️ ${formatarMilhoes(player.maxDano)}`,
 
-                `🔥 DPS recorde: ${formatarDps(player.maxDps)}`
-            ]
+`🔥 ${formatarDps(player.maxDps)}`
+]
 
-            .join('\n');
+.join('\n'),
 
-        }
-
-    ).join('\n\n──────────────\n\n');
+            inline: true
+        })
+    );
 }
 
 function criarLista(
@@ -157,14 +151,11 @@ function criarLista(
             const pos =
                 start + index + 4;
 
-            return [
+            return (
 
-                `\`${pos}.\` ${emojiClasse(player.classe)} **${player.nickname}**`,
-
-                `└ ${player.totalDG} DGs • ⚔️ ${formatarMilhoes(player.maxDano)} • 🔥 ${formatarDps(player.maxDps)}`
-            ]
-
-            .join('\n');
+`${pos}. ${emojiClasse(player.classe)} **${player.nickname}**
+${player.totalDG} DGs • ${formatarMilhoes(player.maxDano)} • 🔥 ${formatarDps(player.maxDps)}`
+            );
 
         }
 
@@ -182,7 +173,9 @@ async function atualizarRankingEmbed(
 
     const totalPages =
         Math.max(
+
             1,
+
             Math.ceil(
                 (ranking.length - 3) / 10
             )
@@ -206,22 +199,19 @@ async function atualizarRankingEmbed(
                 '🏆 Ranking DG Avalon'
             )
 
+            .addFields(
+
+                criarTop3Fields(
+                    ranking
+                )
+            )
+
             .setDescription(
 
-                [
-
-                    criarTop3(
-                        ranking
-                    ),
-
-                    '\n\n──────────────\n\n',
-
-                    criarLista(
-                        ranking,
-                        page
-                    )
-
-                ].join('')
+                `──────────────\n\n${criarLista(
+                    ranking,
+                    page
+                )}`
             )
 
             .setFooter({
