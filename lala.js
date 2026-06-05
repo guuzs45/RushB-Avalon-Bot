@@ -35,8 +35,8 @@ const cron =
     require('node-cron');
 
 const serviceAccount =
-    require(
-        './google-service-account.json'
+    JSON.parse(
+        process.env.GOOGLE_SERVICE_ACCOUNT
     );
 
 const client =
