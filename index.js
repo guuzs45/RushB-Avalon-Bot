@@ -187,6 +187,7 @@ const doc =
     );
 
 let sheet;
+let configSheet;
 
 async function iniciarSheets() {
 
@@ -194,6 +195,9 @@ async function iniciarSheets() {
 
     sheet =
         doc.sheetsByIndex[0];
+
+    configSheet =
+        doc.sheetsByTitle['CONFIG'];
 
     console.log(
         '✅ Google Sheets conectado.'
@@ -227,6 +231,89 @@ async function buscarUsuario(
             r.get('userId') ===
             userId
     );
+}
+
+async function buscarConfig(
+    chave
+) {
+
+    const rows =
+        await configSheet.getRows();
+
+    return rows.find(
+        r =>
+            r.get('chave') ===
+            chave
+    );
+}
+
+async function obterSuspensaoLimpeza() {
+
+    const row =
+        await buscarConfig(
+            'limpezaSuspensaAte'
+        );
+
+    if (
+        !row ||
+        !row.get('valor')
+    ) {
+
+        return null;
+    }
+
+    return new Date(
+        row.get('valor')
+    );
+}
+
+async function definirSuspensaoLimpeza(
+    data
+) {
+
+    let row =
+        await buscarConfig(
+            'limpezaSuspensaAte'
+        );
+
+    if (!row) {
+
+        await configSheet.addRow({
+
+            chave:
+                'limpezaSuspensaAte',
+
+            valor:
+                data.toISOString()
+        });
+
+        return;
+    }
+
+    row.set(
+        'valor',
+        data.toISOString()
+    );
+
+    await row.save();
+}
+
+async function removerSuspensaoLimpeza() {
+
+    const row =
+        await buscarConfig(
+            'limpezaSuspensaAte'
+        );
+
+    if (!row)
+        return;
+
+    row.set(
+        'valor',
+        ''
+    );
+
+    await row.save();
 }
 
 async function updateActivity(
@@ -591,49 +678,97 @@ await iniciarRankingSheet();
 
 const commands = [
 
-            new SlashCommandBuilder()
+    new SlashCommandBuilder()
+
+        .setName(
+            'cleandc'
+        )
+
+        .setDescription(
+            'Executa limpeza manual'
+        ),
+
+    new SlashCommandBuilder()
+
+        .setName(
+            'atividade'
+        )
+
+        .setDescription(
+            'Mostra relatório de atividade'
+        ),
+
+    new SlashCommandBuilder()
+
+        .setName(
+            'registrardg'
+        )
+
+        .setDescription(
+            'Registrar DG'
+        ),
+
+    new SlashCommandBuilder()
+
+        .setName(
+            'attrank'
+        )
+
+        .setDescription(
+            'Atualiza o ranking'
+        ),
+
+    new SlashCommandBuilder()
+
+        .setName(
+            'suspenderlimpeza'
+        )
+
+        .setDescription(
+            'Suspende a limpeza automática'
+        )
+
+        .addStringOption(option =>
+
+            option
 
                 .setName(
-                    'cleandc'
+                    'data'
                 )
 
                 .setDescription(
-                    'Executa limpeza manual'
-                ),
-
-            new SlashCommandBuilder()
-
-                .setName(
-                    'atividade'
+                    'DD/MM/AAAA'
                 )
 
-                .setDescription(
-                    'Mostra relatório de atividade'
-                ),
-
-            new SlashCommandBuilder()
-
-                .setName(
-                    'registrardg'
+                .setRequired(
+                    true
                 )
+        ),
 
-                .setDescription(
-                    'Registrar DG'
-                ),
+    new SlashCommandBuilder()
 
-                new SlashCommandBuilder()
+        .setName(
+            'reativarlimpeza'
+        )
 
-    .setName(
-        'attrank'
-    )
+        .setDescription(
+            'Reativa a limpeza automática'
+        ),
 
-    .setDescription(
-        'Atualiza o ranking'),
+    new SlashCommandBuilder()
 
-        ].map(
-            command =>
-                command.toJSON()
-        );
+        .setName(
+            'statuslimpeza'
+        )
+
+        .setDescription(
+            'Mostra o status da limpeza'
+        )
+
+].map(
+    command =>
+        command.toJSON()
+);
 
         const rest =
             new REST({
@@ -909,6 +1044,121 @@ if (
             });
         }
 
+// STATUS LIMPEZA
+if (
+
+    interaction.commandName ===
+    'statuslimpeza'
+) {
+
+    const suspensaAte =
+        await obterSuspensaoLimpeza();
+
+    if (
+
+        !suspensaAte ||
+
+        Date.now() >
+            suspensaAte.getTime()
+    ) {
+
+        return interaction.reply({
+
+            content:
+                '✅ Limpeza automática ativa.',
+
+            ephemeral: true
+        });
+    }
+
+    return interaction.reply({
+
+        content:
+            `⏸️ Limpeza suspensa até ${suspensaAte.toLocaleDateString('pt-BR')}.`,
+
+        ephemeral: true
+    });
+}
+
+// SUSPENDER LIMPEZA
+if (
+
+    interaction.commandName ===
+    'suspenderlimpeza'
+) {
+
+    const dataStr =
+        interaction.options.getString(
+            'data'
+        );
+
+    const [
+        dia,
+        mes,
+        ano
+    ] =
+        dataStr.split('/');
+
+    const dataFim =
+        new Date(
+
+            Number(ano),
+
+            Number(mes) - 1,
+
+            Number(dia),
+
+            23,
+            59,
+            59
+        );
+
+    if (
+        isNaN(
+            dataFim.getTime()
+        )
+    ) {
+
+        return interaction.reply({
+
+            content:
+                '❌ Data inválida.',
+
+            ephemeral: true
+        });
+    }
+
+    await definirSuspensaoLimpeza(
+        dataFim
+    );
+
+    return interaction.reply({
+
+        content:
+            `⏸️ Limpeza suspensa até ${dataStr}.`,
+
+        ephemeral: true
+    });
+}
+
+// REATIVAR LIMPEZA
+if (
+
+    interaction.commandName ===
+    'reativarlimpeza'
+) {
+
+    await removerSuspensaoLimpeza();
+
+    return interaction.reply({
+
+        content:
+            '✅ Limpeza reativada.',
+
+        ephemeral: true
+    });
+}
+
         // CLEAN
         if (
 
@@ -924,13 +1174,33 @@ if (
                 ephemeral: true
             });
 
-            const guild =
-                await client.guilds.fetch(
-                    GUILD_ID
-                );
+            const suspensaAte =
+    await obterSuspensaoLimpeza();
 
-            executarLimpeza(
-                guild
+if (
+
+    suspensaAte &&
+
+    Date.now() <
+        suspensaAte.getTime()
+) {
+
+    return interaction.followUp({
+
+    content:
+        `⏸️ Limpeza suspensa até ${suspensaAte.toLocaleDateString('pt-BR')}.`,
+
+    ephemeral: true
+});
+}
+
+const guild =
+    await client.guilds.fetch(
+        GUILD_ID
+    );
+
+await executarLimpeza(
+    guild
             );
         }
 
@@ -1405,20 +1675,39 @@ cron.schedule(
 
     async () => {
 
+    console.log(
+        '🧹 Iniciando verificação automática...'
+    );
+
+    const suspensaAte =
+        await obterSuspensaoLimpeza();
+
+    if (
+
+        suspensaAte &&
+
+        Date.now() <
+            suspensaAte.getTime()
+    ) {
+
         console.log(
-            '🧹 Iniciando verificação automática...'
+
+            `⏸️ Limpeza suspensa até ${suspensaAte.toLocaleDateString('pt-BR')}`
         );
 
-        const guild =
-            await client.guilds.fetch(
-                GUILD_ID
-            );
+        return;
+    }
 
-        executarLimpeza(
-            guild
+    const guild =
+        await client.guilds.fetch(
+            GUILD_ID
         );
 
-    },
+    executarLimpeza(
+        guild
+    );
+
+},
 
     {
         timezone:
