@@ -504,19 +504,38 @@ async function executarLimpeza(
                     );
 
                 await member.roles.remove(
-                    rolesToRemove
-                );
+    rolesToRemove
+);
 
-                await member.roles.add(
-                    VISITANTE_ROLE_ID
-                );
+await member.roles.add(
+    VISITANTE_ROLE_ID
+);
 
-                removidos++;
+try {
 
-                if (
-                    logChannel
-                ) {
+    await member.send(
+`Olá!
 
+Seus cargos foram removidos automaticamente por inatividade no Discord da Rush B Avalon.
+
+Caso exista um motivo válido para sua inatividade, você poderá solicitar a recuperação dos cargos entrando em contato com a staff.
+
+Atenciosamente,
+Rush B Avalon`
+    );
+
+} catch (err) {
+
+    console.log(
+        `Não foi possível enviar DM para ${member.user.tag}`
+    );
+}
+
+removidos++;
+
+if (
+    logChannel
+) {
                     const rolesRemovidas =
                         rolesToRemove
 
