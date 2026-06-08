@@ -524,10 +524,14 @@ Atenciosamente,
 Rush B Avalon`
     );
 
+    console.log(
+        `📨 DM enviada para ${member.user.tag}`
+    );
+
 } catch (err) {
 
     console.log(
-        `Não foi possível enviar DM para ${member.user.tag}`
+        `❌ Não foi possível enviar DM para ${member.user.tag}`
     );
 }
 
