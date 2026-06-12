@@ -430,15 +430,22 @@ async function executarLimpeza(
 
         if (
 
-            member.permissions.has(
-                PermissionsBitField
-                    .Flags
-                    .Administrator
-            )
-        ) continue;
+    member.permissions.has(
+        PermissionsBitField
+            .Flags
+            .Administrator
+    )
+) continue;
 
-        const hasProtectedRole =
-            member.roles.cache.some(
+if (
+    member.roles.cache.has(
+        VISITANTE_ROLE_ID
+    )
+)
+    continue;
+
+const hasProtectedRole =
+    member.roles.cache.some(
 
                 role =>
                     PROTECTED_ROLES.includes(
